@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portrait Knitting</title>
+    <script src="./lib/svg.js"></script>
+    <script defer src="./main.js"></script>
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- Before after -->
+    <script defer src="./lib/beforeAfter/main.js"></script>
+    <link rel="stylesheet" href="./lib/beforeAfter/style.css" />
+  </head>
+  <body>
+    <main>
+      <div class="header">
+        <h1>Portrait Knitting</h1>
+        <span>Knit a portrait of someone.</span>
+      </div>
+
+      <div class="before-after">
+        <input type="range" />
+        <div class="images">
+          <div class="before">
+            <canvas id="image"></canvas>
+          </div>
+          <div class="after" id="art"></div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
