@@ -20,15 +20,45 @@
         <span>Knit a portrait of someone.</span>
       </div>
 
-      <div class="before-after">
-        <input type="range" />
-        <div class="images">
-          <div class="before">
-            <canvas id="image"></canvas>
+      <div id="parameters">
+        <input title="Source Image URL" type="text" placeholder="Image URL" />
+        <input type="number" title="Affects the lines" placeholder="Max Line" />
+        <input type="number" title="Affects the lines" placeholder="Pin Count" />
+        <input type="number" title="Affects the lines" placeholder="Min Distance" />
+        <input type="number" title="Affects the lines" placeholder="Color Reduce Amount" />
+        <label title="Affects the lines" for="colored">
+          <input type="checkbox" id="colored" />
+          <span>Colored lines</span>
+        </label>
+        <button id="start" onclick="start()">Start Process</button>
+      </div>
+
+      <div id="process">
+        <div class="top-bar">
+          <div id="thread-details">
+            <label title="Thread (line) thickness">
+              <span>Thickness</span>
+              <input id="thickness" type="range" min="0" max="100" />
+            </label>
+            <label title="Thread (line) opaque">
+              <span>Opaque</span>
+              <input id="opaque" type="range" min="0" max="100" />
+            </label>
           </div>
-          <div class="after" id="art"></div>
+          <div id="elapsed"></div>
+        </div>
+        <div class="before-after">
+          <input type="range" />
+          <div class="images">
+            <div class="before">
+              <canvas id="input"></canvas>
+            </div>
+            <div class="after" id="art"></div>
+          </div>
         </div>
       </div>
+
+      <div id="info">Processing...</div>
     </main>
   </body>
 </html>
