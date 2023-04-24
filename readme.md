@@ -8,6 +8,11 @@ A simple algorithm which transforms images to knitted threads.
 
 [Try Live](https://ilyasbilgihan.github.io/portrait-knitting/)
 
+<div style="display: flex; gap: 20px; width: 100%; justify-content: space-between;">
+  <img src="./examples/empty-canvas.jpg" alt="Empty Canvase">
+  <img src="./examples/canvas.jpg" alt="Canvas">
+</div>
+
 ## Settings Panel
 
 We have 4 settings and 1 source image url input boxes.
