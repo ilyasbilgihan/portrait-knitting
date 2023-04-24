@@ -19,14 +19,20 @@ We have 4 settings and 1 source image url input boxes.
 
 ## Examples
 
-##### Mustafa Kemal Atatürk
+<details>
+    <summary>Mustafa Kemal Atatürk</summary>
+    <br>
+    <img src="./examples/mka.gif" alt="Mustafa Kemal Atatürk GIF">
+</details>
 
-![Mustafa Kemal Atatürk](./examples/mka.gif)
+<details>
+    <summary>Cillian Murphy as Thomas Shelby</summary>
+    <br>
+    <img src="./examples/cm.gif" alt="Cillian Murphy GIF">
+</details>
 
-##### Cillian Murphy as Thomas Shelby
-
-![Cillian Murphy](./examples/cm.gif)
-
-##### Keanu Reeves as John Wick
-
-![Keanu Reeves](./examples/kr.gif)
+<details>
+    <summary>Keanu Reeves as John Wick</summary>
+    <br>
+    <img src="./examples/kr.gif" alt="Keanu Reeves GIF">
+</details>
