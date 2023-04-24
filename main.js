@@ -29,10 +29,10 @@ function start() {
   let process = document.querySelector("#process");
 
   originalImage.src = parameters[0].value || "https://i.imgur.com/6nlVY3F.png";
-  MAX_LINE_COUNT = +parameters[1].value || 3000;
-  PIN_COUNT = +parameters[2].value || 200;
-  MIN_DISTANCE = +parameters[3].value || 15;
-  REDUCE_VALUE = +parameters[4].value || 0.15;
+  MAX_LINE_COUNT = +parameters[1].value || 3600;
+  PIN_COUNT = +parameters[2].value || 180;
+  MIN_DISTANCE = +parameters[3].value || 8;
+  REDUCE_VALUE = +parameters[4].value || 0.1;
   LINE_OPACITY = 0.25;
   IS_COLORED = parameters[5].checked;
 
@@ -68,14 +68,12 @@ function start() {
   opaque.value = LINE_OPACITY * 100;
 
   thickness.addEventListener("input", function (e) {
-    console.log(e.target.value);
     [...svg.svg.querySelectorAll("line")].map((l) => {
       l.setAttribute("stroke-width", e.target.value / 25);
     });
   });
 
   opaque.addEventListener("input", function (e) {
-    console.log(e.target.value);
     [...svg.svg.querySelectorAll("line")].map((l) => {
       l.setAttribute("stroke-opacity", e.target.value / 100);
     });
@@ -240,7 +238,7 @@ function decreaseDarkness(a, b) {
       sketchImage[indicesRGB[2]]
     );
 
-    // decrease darkness means increase lightness
+    // decreasing darkness also means increasing lightness
     let rgbColor = hslToRgb(hslColor[0], hslColor[1], hslColor[2] + REDUCE_VALUE);
     sketchImage[indicesRGB[0]] = rgbColor[0];
     sketchImage[indicesRGB[1]] = rgbColor[1];
