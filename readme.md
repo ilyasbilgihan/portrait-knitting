@@ -4,7 +4,7 @@ Knit a portrait of someone.
 
 ## Settings Panel
 
-We have 5 settings and 1 source image url input boxes.
+We have 4 settings and 1 source image url input boxes.
 
 #### The Settings are:
 
