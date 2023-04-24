@@ -1,5 +1,10 @@
 # Portrait Knitting
 
+<div>
+  <img src="./examples/empty-canvas.jpg" alt="Empty Canvase" width="240" height="240">
+  <img src="./examples/canvas.jpg" alt="Canvas" width="240" height="240">
+</div>
+
 A simple algorithm which transforms images to knitted threads.
 
 - **Note 1:** Whenever the process ends, you can configure thread details (thread thickness and opaque) that suits your physical threads.
@@ -7,11 +12,6 @@ A simple algorithm which transforms images to knitted threads.
 - **Note 2:** Since there is no physical art uses this algorithm, you should be aware that you could get a different result from the digital result.
 
 [Try Live](https://ilyasbilgihan.github.io/portrait-knitting/)
-
-<div style="display: flex; gap: 20px; width: 100%; justify-content: space-between;">
-  <img src="./examples/empty-canvas.jpg" alt="Empty Canvase">
-  <img src="./examples/canvas.jpg" alt="Canvas">
-</div>
 
 ## Settings Panel
 
