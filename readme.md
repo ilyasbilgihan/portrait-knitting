@@ -2,6 +2,8 @@
 
 Knit a portrait of someone.
 
+[Try Live](https://ilyasbilgihan.github.io/portrait-knitting/)
+
 ## Settings Panel
 
 We have 4 settings and 1 source image url input boxes.
