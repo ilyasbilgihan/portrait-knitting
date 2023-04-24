@@ -13,7 +13,7 @@ We have 5 settings and 1 source image url input boxes.
 - **Min Distance(n)** - There will be no vectors (straight lines) from **i<sup>th</sup>** pin to **(i+1,2,3,...,n-1)<sup>th</sup>** pin.
 - **Color Reduce Amount(percent)** - For every line we draw, we will decrease the darkness of the line's pixels from the source image
 
-![Settings Panel](./examples/settings.jpg)
+![Settings Panel](./examples/settings.png)
 
 ## Examples
 
