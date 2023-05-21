@@ -13,6 +13,7 @@ var parameterString,
   lineCount = 0,
   info;
 
+var colors = ["cyan", "magenta", "yellow", "black"];
 var originalImage = new Image();
 originalImage.crossOrigin = "anonymous";
 
@@ -59,7 +60,13 @@ function start() {
 
     pins = generatePins();
 
-    generatePath(0);
+    if (IS_COLORED) {
+      generatePath(0, 0);
+      generatePath(0, 1);
+      generatePath(0, 2);
+    } else {
+      generatePath(0);
+    }
   };
 
   let thickness = document.querySelector("#thickness");
@@ -107,9 +114,9 @@ class Point {
   }
 }
 
-function generatePath(currentPinIndex) {
+function generatePath(currentPinIndex, c = 3) {
   let nextPinIndex;
-  let maxScore = 0;
+  let maxScore = [0, 0, 0, 0];
 
   for (let i = 0; i < pins.length; i++) {
     if (currentPinIndex == i || !isPinFarEnough(currentPinIndex, i)) {
@@ -117,12 +124,12 @@ function generatePath(currentPinIndex) {
     }
 
     let vector = vectorPixelsFromAtoB(pins[currentPinIndex], pins[i]);
-    let score = calculateVectorScore(vector);
+    let score = calculateVectorScore(vector, c);
 
     // SCORE FOR other colors
 
-    if (score >= maxScore) {
-      maxScore = score;
+    if (score[c] >= maxScore[c]) {
+      maxScore[c] = score[c];
       nextPinIndex = i;
     }
   }
@@ -133,19 +140,15 @@ function generatePath(currentPinIndex) {
 
     linePath.push(nextPinIndex);
 
-    decreaseDarkness(pins[currentPinIndex], pins[nextPinIndex]);
+    decreaseDarkness(pins[currentPinIndex], pins[nextPinIndex], c);
 
     let currP = pins[currentPinIndex];
     let nextP = pins[nextPinIndex];
-    if (IS_COLORED) {
-      // TODO
-    } else {
-      svg.line(currP.x, currP.y, nextP.x, nextP.y, "black", 0.5, LINE_OPACITY);
-    }
+    svg.line(currP.x, currP.y, nextP.x, nextP.y, colors[c], 0.5, LINE_OPACITY);
 
     setTimeout(function () {
-      generatePath(nextPinIndex);
-    }, 5);
+      generatePath(nextPinIndex, c);
+    }, 50);
   } else {
     console.log("process finished");
 
@@ -206,20 +209,35 @@ function vectorPixelsFromAtoB(a, b) {
   return coordinatesArray;
 }
 
-function calculateVectorScore(vector) {
-  let score = 0;
+function calculateVectorScore(vector, c = 3) {
+  let score = [0, 0, 0, 0];
 
-  vector.forEach(function (pixel) {
-    let indicesRGB = getRGBIndices(pixel.x, pixel.y);
-    let hslColor = rgbToHsl(
-      sketchImage[indicesRGB[0]],
-      sketchImage[indicesRGB[1]],
-      sketchImage[indicesRGB[2]]
-    );
-    score += 1 - hslColor[2]; // darkness = 1 - lightness
-  });
+  if (c == 3) {
+    vector.forEach(function (pixel) {
+      let indicesRGB = getRGBIndices(pixel.x, pixel.y);
+      let hslColor = rgb2hsl(
+        sketchImage[indicesRGB[0]],
+        sketchImage[indicesRGB[1]],
+        sketchImage[indicesRGB[2]]
+      );
+      score[3] += (1 - hslColor[2]) / vector.length; // darkness = 1 - lightness
+    });
+  } else {
+    vector.forEach(function (pixel) {
+      let indicesRGB = getRGBIndices(pixel.x, pixel.y);
+      let cmykColor = rgb2cmyk(
+        sketchImage[indicesRGB[0]],
+        sketchImage[indicesRGB[1]],
+        sketchImage[indicesRGB[2]]
+      );
 
-  return score / vector.length; // avarage darkness
+      score[0] += cmykColor[0] / vector.length; // cyan
+      score[1] += cmykColor[1] / vector.length; // magenta
+      score[2] += cmykColor[2] / vector.length; // yellow
+      score[3] += cmykColor[3] / vector.length; // black
+    });
+  }
+  return score;
 }
 
 function getRGBIndices(x, y) {
@@ -228,21 +246,37 @@ function getRGBIndices(x, y) {
   return [redIndex, redIndex + 1, redIndex + 2];
 }
 
-function decreaseDarkness(a, b) {
+function decreaseDarkness(a, b, c = 3) {
   let vector = vectorPixelsFromAtoB(a, b);
   vector.forEach(function (pixel) {
     let indicesRGB = getRGBIndices(pixel.x, pixel.y);
-    let hslColor = rgbToHsl(
-      sketchImage[indicesRGB[0]],
-      sketchImage[indicesRGB[1]],
-      sketchImage[indicesRGB[2]]
-    );
 
-    // decreasing darkness also means increasing lightness
-    let rgbColor = hslToRgb(hslColor[0], hslColor[1], hslColor[2] + REDUCE_VALUE);
-    sketchImage[indicesRGB[0]] = rgbColor[0];
-    sketchImage[indicesRGB[1]] = rgbColor[1];
-    sketchImage[indicesRGB[2]] = rgbColor[2];
+    if (c == 3) {
+      let hslColor = rgb2hsl(
+        sketchImage[indicesRGB[0]],
+        sketchImage[indicesRGB[1]],
+        sketchImage[indicesRGB[2]]
+      );
+
+      // decreasing darkness also means increasing lightness
+      let rgbColor = hsl2rgb(hslColor[0], hslColor[1], hslColor[2] + REDUCE_VALUE);
+      sketchImage[indicesRGB[0]] = rgbColor[0];
+      sketchImage[indicesRGB[1]] = rgbColor[1];
+      sketchImage[indicesRGB[2]] = rgbColor[2];
+    } else {
+      let cmykColor = rgb2cmyk(
+        sketchImage[indicesRGB[0]],
+        sketchImage[indicesRGB[1]],
+        sketchImage[indicesRGB[2]]
+      );
+      cmykColor[c] -= REDUCE_VALUE * 2;
+
+      let rgbColor = cmyk2rgb(cmykColor[0], cmykColor[1], cmykColor[2], cmykColor[3]);
+
+      sketchImage[indicesRGB[0]] = rgbColor[0];
+      sketchImage[indicesRGB[1]] = rgbColor[1];
+      sketchImage[indicesRGB[2]] = rgbColor[2];
+    }
 
     // TODO: check if it is necessary
     /* if (imgData[getColor(pixel.x, pixel.y)[0]] > 255) {
@@ -251,7 +285,7 @@ function decreaseDarkness(a, b) {
   });
 }
 
-function hslToRgb(h, s, l) {
+function hsl2rgb(h, s, l) {
   var r, g, b;
 
   if (s == 0) {
@@ -276,7 +310,7 @@ function hslToRgb(h, s, l) {
   return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 
-function rgbToHsl(r, g, b) {
+function rgb2hsl(r, g, b) {
   (r /= 255), (g /= 255), (b /= 255);
   var max = Math.max(r, g, b),
     min = Math.min(r, g, b);
@@ -304,4 +338,34 @@ function rgbToHsl(r, g, b) {
   }
 
   return [h, s, l];
+}
+
+function rgb2cmyk(r, g, b) {
+  var computedC = 0;
+  var computedM = 0;
+  var computedY = 0;
+  var computedK = 0;
+
+  if (r == 0 && g == 0 && b == 0) {
+    return [0, 0, 0, 1];
+  }
+
+  computedC = 1 - r / 255;
+  computedM = 1 - g / 255;
+  computedY = 1 - b / 255;
+
+  var minCMY = Math.min(computedC, computedM, computedY);
+  computedC = (computedC - minCMY) / (1 - minCMY);
+  computedM = (computedM - minCMY) / (1 - minCMY);
+  computedY = (computedY - minCMY) / (1 - minCMY);
+  computedK = minCMY;
+
+  return [computedC, computedM, computedY, computedK];
+}
+
+function cmyk2rgb(c, m, y, k) {
+  let r = 255 * (1 - c) * (1 - k);
+  let g = 255 * (1 - m) * (1 - k);
+  let b = 255 * (1 - y) * (1 - k);
+  return [r, g, b];
 }
