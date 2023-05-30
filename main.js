@@ -8,33 +8,43 @@ var SIZE = 700,
 
 var parameterString,
   sketchImage,
+  imgDataCpy,
+  colorData = [],
   linePath = [0],
   pins,
   lineCount = 0,
   info;
 
-var colors = ["cyan", "magenta", "yellow", "black"];
-var originalImage = new Image();
-originalImage.crossOrigin = "anonymous";
+var colors = ['#e32322', '#008e5b', '#2a71b0', '#000000', '#f4e500'];
+// var colors = ['#ff0000', '#00ff00', '#0000ff', '#000000', '#ffff00'];
 
-let input = document.querySelector("#input");
+var colorsRGB = [
+  [227, 35, 34],
+  [244, 229, 0],
+  [42, 113, 176],
+  [0, 0, 0],
+];
+var originalImage = new Image();
+originalImage.crossOrigin = 'anonymous';
+
+let input = document.querySelector('#input');
 input.width = SIZE;
 input.height = SIZE;
 
-var svg = new SVG(SIZE, SIZE, "#art");
+var svg = new SVG(SIZE, SIZE, '#art');
 
-var elapsed = document.querySelector("#elapsed");
+var elapsed = document.querySelector('#elapsed');
 
 function start() {
-  let parameters = [...document.querySelectorAll("#parameters input")];
-  let process = document.querySelector("#process");
+  let parameters = [...document.querySelectorAll('#parameters input')];
+  let process = document.querySelector('#process');
 
-  originalImage.src = parameters[0].value || "https://i.imgur.com/6nlVY3F.png";
+  originalImage.src = parameters[0].value || 'https://i.imgur.com/6nlVY3F.png';
   MAX_LINE_COUNT = +parameters[1].value || 3600;
   PIN_COUNT = +parameters[2].value || 180;
   MIN_DISTANCE = +parameters[3].value || 8;
   REDUCE_VALUE = +parameters[4].value || 0.1;
-  LINE_OPACITY = 0.25;
+  LINE_OPACITY = 0.75;
   IS_COLORED = parameters[5].checked;
 
   parameterString = `Line Count: ${MAX_LINE_COUNT} | 
@@ -43,46 +53,58 @@ function start() {
   Color Reduce Amount: ${REDUCE_VALUE} | 
   Is Colored: ${IS_COLORED}`;
 
-  document.querySelector("#parameters").style.display = "none";
-  process.style.display = "block";
+  document.querySelector('#parameters').style.display = 'none';
+  process.style.display = 'block';
 
-  info = document.querySelector("#info");
-  info.style.display = "block";
+  info = document.querySelector('#info');
+  info.style.display = 'block';
 
   originalImage.onload = function () {
-    const c = document.querySelector("#input");
-    const ctx = c.getContext("2d");
+    const c = document.querySelector('#input');
+    const ctx = c.getContext('2d');
 
     let sourceSize = Math.min(originalImage.width, originalImage.height);
-    ctx.drawImage(originalImage, 0, 0, sourceSize, sourceSize, 0, 0, SIZE, SIZE); // top left square corner of the image
+    ctx.drawImage(
+      originalImage,
+      0,
+      0,
+      sourceSize,
+      sourceSize,
+      0,
+      0,
+      SIZE,
+      SIZE
+    ); // top left square corner of the image
 
     sketchImage = ctx.getImageData(0, 0, SIZE, SIZE).data; // used for increasing brightness
+    imgDataCpy = ctx.getImageData(0, 0, SIZE, SIZE).data; // used for reducing colors
 
     pins = generatePins();
 
     if (IS_COLORED) {
-      generatePath(0, 0);
+      /* generatePath(0, 0);
       generatePath(0, 1);
-      generatePath(0, 2);
+      generatePath(0, 2); */
+      generatePath(0, 3);
     } else {
       generatePath(0);
     }
   };
 
-  let thickness = document.querySelector("#thickness");
-  thickness.value = 0.5 * 25;
-  let opaque = document.querySelector("#opaque");
+  let thickness = document.querySelector('#thickness');
+  thickness.value = 6;
+  let opaque = document.querySelector('#opaque');
   opaque.value = LINE_OPACITY * 100;
 
-  thickness.addEventListener("input", function (e) {
-    [...svg.svg.querySelectorAll("line")].map((l) => {
-      l.setAttribute("stroke-width", e.target.value / 25);
+  thickness.addEventListener('input', function (e) {
+    [...svg.svg.querySelectorAll('line')].map((l) => {
+      l.setAttribute('stroke-width', e.target.value / 25);
     });
   });
 
-  opaque.addEventListener("input", function (e) {
-    [...svg.svg.querySelectorAll("line")].map((l) => {
-      l.setAttribute("stroke-opacity", e.target.value / 100);
+  opaque.addEventListener('input', function (e) {
+    [...svg.svg.querySelectorAll('line')].map((l) => {
+      l.setAttribute('stroke-opacity', e.target.value / 100);
     });
   });
 }
@@ -97,8 +119,8 @@ function generatePins(pinCount = PIN_COUNT, diameter = SIZE) {
     let y = Math.round(radius + radius * Math.sin(k * angle));
 
     // lets prevent overflow
-    x == SIZE ? x-- : "";
-    y == SIZE ? y-- : "";
+    x == SIZE ? x-- : '';
+    y == SIZE ? y-- : '';
 
     pins.push(new Point(x, y));
     // svg.rect(x, y, 1, 1, "red"); // show pins
@@ -115,6 +137,68 @@ class Point {
 }
 
 function generatePath(currentPinIndex, c = 3) {
+  if (lineCount <= MAX_LINE_COUNT) {
+    elapsed.innerHTML = `${((lineCount * 100) / MAX_LINE_COUNT).toFixed(2)}%`;
+
+    let nextPinIndex = findNextBestPin(currentPinIndex, c);
+    linePath.push(nextPinIndex);
+
+    decreaseDarkness(pins[currentPinIndex], pins[nextPinIndex], c);
+
+    let currP = pins[currentPinIndex];
+    let nextP = pins[nextPinIndex];
+
+    if (IS_COLORED) {
+      colorData.push(colorizeLine(currP, nextP));
+    } else {
+      svg.line(currP.x, currP.y, nextP.x, nextP.y, `black`, 0.25, LINE_OPACITY);
+    }
+    setTimeout(function () {
+      lineCount++;
+      generatePath(nextPinIndex, c);
+    }, 20);
+  } else {
+    console.log('process finished');
+
+    info.innerHTML = parameterString; // used settings for the current process
+
+    info.appendChild(document.createElement('br'));
+    var downloadData = info.appendChild(document.createElement('a'));
+
+    let combinedData = [];
+    for (let i = 0; i < linePath.length - 1; i++) {
+      let lineInfo =
+        linePath[i] +
+        '->' +
+        linePath[i + 1] +
+        ' | ' +
+        hexToString(colorData[i]);
+      combinedData.push(lineInfo);
+    }
+    downloadData.download = 'pins-and-colors.txt';
+
+    console.log(combinedData);
+
+    downloadData.href =
+      'data:text/plain;base64,' + btoa(combinedData.join('\n'));
+    downloadData.innerHTML = 'Download Data';
+  }
+}
+function hexToString(hex) {
+  if (hex == '#e32322') {
+    return 'red';
+  } else if (hex == '#008e5b') {
+    return 'green';
+  } else if (hex == '#2a71b0') {
+    return 'blue';
+  } else if (hex == '#f4e500') {
+    return 'yellow';
+  } else {
+    return 'black';
+  }
+}
+
+function findNextBestPin(currentPinIndex, c) {
   let nextPinIndex;
   let maxScore = [0, 0, 0, 0];
 
@@ -133,34 +217,7 @@ function generatePath(currentPinIndex, c = 3) {
       nextPinIndex = i;
     }
   }
-  lineCount++;
-
-  if (lineCount <= MAX_LINE_COUNT) {
-    elapsed.innerHTML = `${((lineCount * 100) / MAX_LINE_COUNT).toFixed(2)}%`;
-
-    linePath.push(nextPinIndex);
-
-    decreaseDarkness(pins[currentPinIndex], pins[nextPinIndex], c);
-
-    let currP = pins[currentPinIndex];
-    let nextP = pins[nextPinIndex];
-    svg.line(currP.x, currP.y, nextP.x, nextP.y, colors[c], 0.5, LINE_OPACITY);
-
-    setTimeout(function () {
-      generatePath(nextPinIndex, c);
-    }, 50);
-  } else {
-    console.log("process finished");
-
-    info.innerHTML = parameterString; // used settings for the current process
-
-    info.appendChild(document.createElement("br"));
-    var downloadData = info.appendChild(document.createElement("a"));
-    downloadData.download = "line-path.txt";
-
-    downloadData.href = "data:text/plain;base64," + btoa(linePath.join("\n"));
-    downloadData.innerHTML = "Download Data";
-  }
+  return nextPinIndex;
 }
 
 function isPinFarEnough(current, target) {
@@ -222,20 +279,6 @@ function calculateVectorScore(vector, c = 3) {
       );
       score[3] += (1 - hslColor[2]) / vector.length; // darkness = 1 - lightness
     });
-  } else {
-    vector.forEach(function (pixel) {
-      let indicesRGB = getRGBIndices(pixel.x, pixel.y);
-      let cmykColor = rgb2cmyk(
-        sketchImage[indicesRGB[0]],
-        sketchImage[indicesRGB[1]],
-        sketchImage[indicesRGB[2]]
-      );
-
-      score[0] += cmykColor[0] / vector.length; // cyan
-      score[1] += cmykColor[1] / vector.length; // magenta
-      score[2] += cmykColor[2] / vector.length; // yellow
-      score[3] += cmykColor[3] / vector.length; // black
-    });
   }
   return score;
 }
@@ -259,20 +302,11 @@ function decreaseDarkness(a, b, c = 3) {
       );
 
       // decreasing darkness also means increasing lightness
-      let rgbColor = hsl2rgb(hslColor[0], hslColor[1], hslColor[2] + REDUCE_VALUE);
-      sketchImage[indicesRGB[0]] = rgbColor[0];
-      sketchImage[indicesRGB[1]] = rgbColor[1];
-      sketchImage[indicesRGB[2]] = rgbColor[2];
-    } else {
-      let cmykColor = rgb2cmyk(
-        sketchImage[indicesRGB[0]],
-        sketchImage[indicesRGB[1]],
-        sketchImage[indicesRGB[2]]
+      let rgbColor = hsl2rgb(
+        hslColor[0],
+        hslColor[1],
+        hslColor[2] + REDUCE_VALUE
       );
-      cmykColor[c] -= REDUCE_VALUE * 2;
-
-      let rgbColor = cmyk2rgb(cmykColor[0], cmykColor[1], cmykColor[2], cmykColor[3]);
-
       sketchImage[indicesRGB[0]] = rgbColor[0];
       sketchImage[indicesRGB[1]] = rgbColor[1];
       sketchImage[indicesRGB[2]] = rgbColor[2];
@@ -340,32 +374,61 @@ function rgb2hsl(r, g, b) {
   return [h, s, l];
 }
 
-function rgb2cmyk(r, g, b) {
-  var computedC = 0;
-  var computedM = 0;
-  var computedY = 0;
-  var computedK = 0;
+function colorizeLine(a, b) {
+  let color = [0, 0, 0];
 
-  if (r == 0 && g == 0 && b == 0) {
-    return [0, 0, 0, 1];
-  }
+  let vector = vectorPixelsFromAtoB(a, b);
+  vector.forEach(function (pixel) {
+    let indicesRGB = getRGBIndices(pixel.x, pixel.y);
+    color[0] += imgDataCpy[indicesRGB[0]];
+    color[1] += imgDataCpy[indicesRGB[1]];
+    color[2] += imgDataCpy[indicesRGB[2]];
+  });
 
-  computedC = 1 - r / 255;
-  computedM = 1 - g / 255;
-  computedY = 1 - b / 255;
+  color = color.map((c1) => Math.round(c1 / vector.length));
 
-  var minCMY = Math.min(computedC, computedM, computedY);
-  computedC = (computedC - minCMY) / (1 - minCMY);
-  computedM = (computedM - minCMY) / (1 - minCMY);
-  computedY = (computedY - minCMY) / (1 - minCMY);
-  computedK = minCMY;
+  let c = findBestColorAndReduceOriginalSourceColor(
+    color,
+    vector,
+    REDUCE_VALUE * 350
+  );
 
-  return [computedC, computedM, computedY, computedK];
+  /* svg
+    .line(a.x, a.y, b.x, b.y)
+    .stroke({ color: c, width: 0.5, opacity: LINE_OPACITY }); */
+
+  svg.line(a.x, a.y, b.x, b.y, c, 0.25, LINE_OPACITY);
+  return c;
 }
 
-function cmyk2rgb(c, m, y, k) {
-  let r = 255 * (1 - c) * (1 - k);
-  let g = 255 * (1 - m) * (1 - k);
-  let b = 255 * (1 - y) * (1 - k);
-  return [r, g, b];
+function findBestColorAndReduceOriginalSourceColor(color, vector, reduce) {
+  let max = Math.max(color[0], color[1], color[2]);
+  let c = color.indexOf(max);
+
+  if (c != 2 && color[0] == color[1] && color[1] != color[2]) {
+    console.log('yellow');
+    c = 4;
+  }
+  if (color[0] == color[1] && color[1] == color[2]) {
+    c = 3;
+  }
+
+  vector.forEach(function (pixel) {
+    let indicesRGB = getRGBIndices(pixel.x, pixel.y);
+    if (c == 4) {
+      imgDataCpy[indicesRGB[0]] -= reduce / 2;
+      imgDataCpy[indicesRGB[1]] -= reduce / 2;
+    } else if (c == 3) {
+      imgDataCpy[indicesRGB[0]] -= reduce / 3;
+      imgDataCpy[indicesRGB[1]] -= reduce / 3;
+      imgDataCpy[indicesRGB[2]] -= reduce / 3;
+    } else {
+      imgDataCpy[indicesRGB[c]] -= reduce;
+    }
+    if (imgDataCpy[indicesRGB[c]] < 0) {
+      console.log('hello');
+    }
+  });
+
+  return colors[c];
 }
