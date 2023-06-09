@@ -15,6 +15,8 @@ var parameterString,
   lineCount = 0,
   info;
 
+var ssim, originalImageData;
+
 var colors = ['#e32322', '#008e5b', '#2a71b0', '#000000', '#f4e500'];
 // var colors = ['#ff0000', '#00ff00', '#0000ff', '#000000', '#ffff00'];
 
@@ -78,14 +80,13 @@ function start() {
 
     sketchImage = ctx.getImageData(0, 0, SIZE, SIZE).data; // used for increasing brightness
     imgDataCpy = ctx.getImageData(0, 0, SIZE, SIZE).data; // used for reducing colors
+    originalImageData = ctx.getImageData(0, 0, SIZE, SIZE);
 
     pins = generatePins();
+    ssim = window.ssim.default;
 
     if (IS_COLORED) {
-      /* generatePath(0, 0);
-      generatePath(0, 1);
-      generatePath(0, 2); */
-      generatePath(0, 3);
+      generatePath(0);
     } else {
       generatePath(0);
     }
@@ -150,13 +151,28 @@ function generatePath(currentPinIndex, c = 3) {
 
     if (IS_COLORED) {
       colorData.push(colorizeLine(currP, nextP));
+      //colorData.push(colorizeLine2(currP, nextP, c));
     } else {
       svg.line(currP.x, currP.y, nextP.x, nextP.y, `black`, 0.25, LINE_OPACITY);
     }
     setTimeout(function () {
       lineCount++;
       generatePath(nextPinIndex, c);
-    }, 20);
+    }, 10);
+
+    if (lineCount % 50 == 0) {
+      let MySVG = document.querySelector('#art svg');
+      svgToCanvas(MySVG).then((canv) => {
+        let jpg = toJPG(canv);
+        const { mssim: original } = ssim(jpg, originalImageData, {
+          downsample: false,
+          ssim: 'fast',
+        });
+        console.log(
+          `%${((1 - original * 2) * 100).toFixed(2)} similar to original image`
+        );
+      });
+    }
   } else {
     console.log('process finished');
 
@@ -269,17 +285,15 @@ function vectorPixelsFromAtoB(a, b) {
 function calculateVectorScore(vector, c = 3) {
   let score = [0, 0, 0, 0];
 
-  if (c == 3) {
-    vector.forEach(function (pixel) {
-      let indicesRGB = getRGBIndices(pixel.x, pixel.y);
-      let hslColor = rgb2hsl(
-        sketchImage[indicesRGB[0]],
-        sketchImage[indicesRGB[1]],
-        sketchImage[indicesRGB[2]]
-      );
-      score[3] += (1 - hslColor[2]) / vector.length; // darkness = 1 - lightness
-    });
-  }
+  vector.forEach(function (pixel) {
+    let indicesRGB = getRGBIndices(pixel.x, pixel.y);
+    let hslColor = rgb2hsl(
+      sketchImage[indicesRGB[0]],
+      sketchImage[indicesRGB[1]],
+      sketchImage[indicesRGB[2]]
+    );
+    score[3] += (1 - hslColor[2]) / vector.length; // darkness = 1 - lightness
+  });
   return score;
 }
 
@@ -294,24 +308,21 @@ function decreaseDarkness(a, b, c = 3) {
   vector.forEach(function (pixel) {
     let indicesRGB = getRGBIndices(pixel.x, pixel.y);
 
-    if (c == 3) {
-      let hslColor = rgb2hsl(
-        sketchImage[indicesRGB[0]],
-        sketchImage[indicesRGB[1]],
-        sketchImage[indicesRGB[2]]
-      );
+    let hslColor = rgb2hsl(
+      sketchImage[indicesRGB[0]],
+      sketchImage[indicesRGB[1]],
+      sketchImage[indicesRGB[2]]
+    );
 
-      // decreasing darkness also means increasing lightness
-      let rgbColor = hsl2rgb(
-        hslColor[0],
-        hslColor[1],
-        hslColor[2] + REDUCE_VALUE
-      );
-      sketchImage[indicesRGB[0]] = rgbColor[0];
-      sketchImage[indicesRGB[1]] = rgbColor[1];
-      sketchImage[indicesRGB[2]] = rgbColor[2];
-    }
-
+    // decreasing darkness also means increasing lightness
+    let rgbColor = hsl2rgb(
+      hslColor[0],
+      hslColor[1],
+      hslColor[2] + REDUCE_VALUE
+    );
+    sketchImage[indicesRGB[0]] = rgbColor[0];
+    sketchImage[indicesRGB[1]] = rgbColor[1];
+    sketchImage[indicesRGB[2]] = rgbColor[2];
     // TODO: check if it is necessary
     /* if (imgData[getColor(pixel.x, pixel.y)[0]] > 255) {
       imgData[getColor(pixel.x, pixel.y)[0]] = 255;
@@ -406,10 +417,13 @@ function findBestColorAndReduceOriginalSourceColor(color, vector, reduce) {
   let c = color.indexOf(max);
 
   if (c != 2 && color[0] == color[1] && color[1] != color[2]) {
-    console.log('yellow');
+    // if red and green are equal but blue is different and blue is not the max
+    // yellow
     c = 4;
   }
   if (color[0] == color[1] && color[1] == color[2]) {
+    // if all colors are equal
+    // black
     c = 3;
   }
 
@@ -425,10 +439,54 @@ function findBestColorAndReduceOriginalSourceColor(color, vector, reduce) {
     } else {
       imgDataCpy[indicesRGB[c]] -= reduce;
     }
-    if (imgDataCpy[indicesRGB[c]] < 0) {
-      console.log('hello');
-    }
   });
 
   return colors[c];
+}
+
+function rgbToGrayscale(imgData) {
+  let tmp = imgData;
+
+  for (let i = 0; i < imgData.length; i += 4) {
+    const r = tmp[i] * 0.3; // ------> Red is low
+    const g = tmp[i + 1] * 0.59; // ---> Green is high
+    const b = tmp[i + 2] * 0.11; // ----> Blue is very low
+
+    const gray = r + g + b;
+
+    tmp[i] = gray;
+    tmp[i + 1] = gray;
+    tmp[i + 2] = gray;
+  }
+
+  return tmp;
+}
+
+function svgToCanvas(art) {
+  return new Promise((resolve, reject) => {
+    let s = new XMLSerializer().serializeToString(art);
+    let encodedData = btoa(s);
+    let canvas = document.createElement('canvas');
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+    let ctx = canvas.getContext('2d');
+    let img = new Image();
+    img.onload = function () {
+      ctx.drawImage(img, 0, 0);
+      resolve(ctx.getImageData(0, 0, SIZE, SIZE));
+    };
+    img.src = 'data:image/svg+xml;base64,' + encodedData;
+  });
+}
+
+function toJPG(canv) {
+  for (let i = 0; i < canv.data.length; i += 4) {
+    if (canv.data[i + 3] == 0) {
+      canv.data[i] = 255;
+      canv.data[i + 1] = 255;
+      canv.data[i + 2] = 255;
+      canv.data[i + 3] = 255;
+    }
+  }
+  return canv;
 }
