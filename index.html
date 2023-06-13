@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Portrait Knitting</title>
     <script src="./lib/svg.js"></script>
+    <script defer src="./lib/bilateralFilter/main.js"></script>
     <script defer src="./main.js"></script>
     <link rel="stylesheet" href="style.css" />
 
@@ -44,6 +45,14 @@
         <label title="Affects the lines" for="colored">
           <input type="checkbox" id="colored" />
           <span>Colored lines</span>
+        </label>
+        <label title="Affects the lines">
+          <input type="radio" name="bilateral" value="fast" />
+          <span>Bilateral Filter Fast</span>
+        </label>
+        <label title="Affects the lines">
+          <input type="radio" name="bilateral" value="normal" />
+          <span>Bilateral Filter</span>
         </label>
         <button id="start" onclick="start()">Start Process</button>
       </div>

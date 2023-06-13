@@ -4,7 +4,9 @@ var SIZE = 700,
   MIN_DISTANCE,
   REDUCE_VALUE,
   LINE_OPACITY,
-  IS_COLORED;
+  IS_COLORED,
+  BILATERAL_FAST_CHECK,
+  BILATERAL_NORMAL_CHECK;
 
 var parameterString,
   sketchImage,
@@ -48,6 +50,8 @@ function start() {
   REDUCE_VALUE = +parameters[4].value || 0.1;
   LINE_OPACITY = 0.75;
   IS_COLORED = parameters[5].checked;
+  BILATERAL_FAST_CHECK = parameters[6].checked;
+  BILATERAL_NORMAL_CHECK = parameters[7].checked;
 
   parameterString = `Line Count: ${MAX_LINE_COUNT} | 
   Pin Count: ${PIN_COUNT} | 
@@ -78,9 +82,28 @@ function start() {
       SIZE
     ); // top left square corner of the image
 
-    sketchImage = ctx.getImageData(0, 0, SIZE, SIZE).data; // used for increasing brightness
-    imgDataCpy = ctx.getImageData(0, 0, SIZE, SIZE).data; // used for reducing colors
-    originalImageData = ctx.getImageData(0, 0, SIZE, SIZE);
+    originalImageData = ctx.getImageData(0, 0, SIZE, SIZE); // used for similarity comparision
+    sketchImage = new Uint8ClampedArray(originalImageData.data); // used for increasing brightness
+    imgDataCpy = new Uint8ClampedArray(originalImageData.data); // used for reducing colors
+
+    if (BILATERAL_FAST_CHECK) {
+      const bf = new bilateralFilterFast();
+      bf.sigma = 12;
+      bf.bins = 64;
+      sketchImage = bf.run(originalImageData).data; // used for increasing brightness
+    } else if (BILATERAL_NORMAL_CHECK) {
+      const bf = new bilateralFilter();
+      bf.sigma = 4;
+      bf.kernelsize = 4 * bf.sigma;
+      sketchImage = bf.run(originalImageData).data; // used for increasing brightness
+      imgDataCpy = new Uint8ClampedArray(sketchImage); // used for reducing colors
+    }
+
+    if (IS_COLORED) {
+      ctx.putImageData(arrayToImageData(sketchImage), 0, 0);
+    } else {
+      ctx.putImageData(arrayToImageData(rgbToGrayscale(sketchImage)), 0, 0);
+    }
 
     pins = generatePins();
     ssim = window.ssim.default;
@@ -444,10 +467,14 @@ function findBestColorAndReduceOriginalSourceColor(color, vector, reduce) {
   return colors[c];
 }
 
-function rgbToGrayscale(imgData) {
-  let tmp = imgData;
+function arrayToImageData(array, width = SIZE, height = SIZE) {
+  return new ImageData(array, width, height);
+}
 
-  for (let i = 0; i < imgData.length; i += 4) {
+function rgbToGrayscale(imgData) {
+  let tmp = new Uint8ClampedArray(imgData);
+
+  for (let i = 0; i < tmp.length; i += 4) {
     const r = tmp[i] * 0.3; // ------> Red is low
     const g = tmp[i + 1] * 0.59; // ---> Green is high
     const b = tmp[i + 2] * 0.11; // ----> Blue is very low
