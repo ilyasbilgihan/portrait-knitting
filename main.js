@@ -4,6 +4,7 @@ var SIZE = 700,
   MIN_DISTANCE,
   REDUCE_VALUE,
   LINE_OPACITY,
+  LINE_THICKNESS,
   IS_COLORED,
   BILATERAL_FAST_CHECK,
   BILATERAL_NORMAL_CHECK;
@@ -18,16 +19,24 @@ var parameterString,
   info;
 
 var ssim, originalImageData;
+const whiteBg = document.createElementNS(
+  'http://www.w3.org/2000/svg',
+  'circle'
+);
+whiteBg.setAttribute('cx', '50%');
+whiteBg.setAttribute('cy', '50%');
+whiteBg.setAttribute('r', SIZE / 2);
+whiteBg.setAttribute('fill', 'white');
 
 var colors = ['#e32322', '#008e5b', '#2a71b0', '#000000', '#f4e500'];
 // var colors = ['#ff0000', '#00ff00', '#0000ff', '#000000', '#ffff00'];
-
-var colorsRGB = [
+/* var colorsRGB = [
   [227, 35, 34],
   [244, 229, 0],
   [42, 113, 176],
   [0, 0, 0],
-];
+]; */
+
 var originalImage = new Image();
 originalImage.crossOrigin = 'anonymous';
 
@@ -52,6 +61,7 @@ function start() {
   IS_COLORED = parameters[5].checked;
   BILATERAL_FAST_CHECK = parameters[6].checked;
   BILATERAL_NORMAL_CHECK = parameters[7].checked;
+  LINE_THICKNESS = 0.25;
 
   parameterString = `Line Count: ${MAX_LINE_COUNT} | 
   Pin Count: ${PIN_COUNT} | 
@@ -80,7 +90,26 @@ function start() {
       0,
       SIZE,
       SIZE
-    ); // top left square corner of the image
+    );
+
+    // circular crop
+    ctx.globalCompositeOperation = 'destination-in';
+
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(
+      SIZE * 0.5, // x
+      SIZE * 0.5, // y
+      SIZE * 0.5, // radius
+      0, // start angle
+      2 * Math.PI // end angle
+    );
+    ctx.fill();
+
+    // restore to default composite operation (is draw over current image)
+    ctx.globalCompositeOperation = 'source-over';
+
+    // end of circular crop
 
     originalImageData = ctx.getImageData(0, 0, SIZE, SIZE); // used for similarity comparision
     sketchImage = new Uint8ClampedArray(originalImageData.data); // used for increasing brightness
@@ -121,12 +150,14 @@ function start() {
   opaque.value = LINE_OPACITY * 100;
 
   thickness.addEventListener('input', function (e) {
+    LINE_THICKNESS = e.target.value / 25;
     [...svg.svg.querySelectorAll('line')].map((l) => {
       l.setAttribute('stroke-width', e.target.value / 25);
     });
   });
 
   opaque.addEventListener('input', function (e) {
+    LINE_OPACITY = e.target.value / 100;
     [...svg.svg.querySelectorAll('line')].map((l) => {
       l.setAttribute('stroke-opacity', e.target.value / 100);
     });
@@ -176,7 +207,15 @@ function generatePath(currentPinIndex, c = 3) {
       colorData.push(colorizeLine(currP, nextP));
       //colorData.push(colorizeLine2(currP, nextP, c));
     } else {
-      svg.line(currP.x, currP.y, nextP.x, nextP.y, `black`, 0.25, LINE_OPACITY);
+      svg.line(
+        currP.x,
+        currP.y,
+        nextP.x,
+        nextP.y,
+        `black`,
+        LINE_THICKNESS,
+        LINE_OPACITY
+      );
     }
     setTimeout(function () {
       lineCount++;
@@ -184,16 +223,14 @@ function generatePath(currentPinIndex, c = 3) {
     }, 10);
 
     if (lineCount % 50 == 0) {
-      let MySVG = document.querySelector('#art svg');
+      let MySVG = document.querySelector('#art svg').cloneNode(true);
+      MySVG.prepend(whiteBg);
       svgToCanvas(MySVG).then((canv) => {
-        let jpg = toJPG(canv);
-        const { mssim: original } = ssim(jpg, originalImageData, {
-          downsample: false,
-          ssim: 'fast',
+        const { mssim } = ssim(canv, originalImageData, {
+          k1: 0.00000000000001,
+          k2: 0.00000000000001,
         });
-        console.log(
-          `%${((1 - original * 2) * 100).toFixed(2)} similar to original image`
-        );
+        console.log(`%${(mssim * 100).toFixed(2)} similar to original image`);
       });
     }
   } else {
@@ -431,7 +468,7 @@ function colorizeLine(a, b) {
     .line(a.x, a.y, b.x, b.y)
     .stroke({ color: c, width: 0.5, opacity: LINE_OPACITY }); */
 
-  svg.line(a.x, a.y, b.x, b.y, c, 0.25, LINE_OPACITY);
+  svg.line(a.x, a.y, b.x, b.y, c, LINE_THICKNESS, LINE_OPACITY);
   return c;
 }
 
@@ -504,16 +541,4 @@ function svgToCanvas(art) {
     };
     img.src = 'data:image/svg+xml;base64,' + encodedData;
   });
-}
-
-function toJPG(canv) {
-  for (let i = 0; i < canv.data.length; i += 4) {
-    if (canv.data[i + 3] == 0) {
-      canv.data[i] = 255;
-      canv.data[i + 1] = 255;
-      canv.data[i + 2] = 255;
-      canv.data[i + 3] = 255;
-    }
-  }
-  return canv;
 }
