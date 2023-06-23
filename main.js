@@ -63,17 +63,18 @@ function start() {
   BILATERAL_NORMAL_CHECK = parameters[7].checked;
   LINE_THICKNESS = 0.25;
 
-  parameterString = `Line Count: ${MAX_LINE_COUNT} | 
-  Pin Count: ${PIN_COUNT} | 
-  Min Distance: ${MIN_DISTANCE} | 
-  Color Reduce Amount: ${REDUCE_VALUE} | 
-  Is Colored: ${IS_COLORED}`;
+  parameterString = `Line Count\t\t: ${MAX_LINE_COUNT}
+Pin Count\t\t: ${PIN_COUNT}
+Min Distance\t\t: ${MIN_DISTANCE}
+Color Reduce Amount\t: ${REDUCE_VALUE}
+Is Colored\t\t: ${IS_COLORED}
+Bilateral\t\t: ${BILATERAL_FAST_CHECK ? "Fast" : BILATERAL_NORMAL_CHECK ? "Normal" : "false"}`;
 
   document.querySelector('#parameters').style.display = 'none';
   process.style.display = 'block';
 
   info = document.querySelector('#info');
-  info.style.display = 'block';
+  info.style.display = 'flex';
 
   originalImage.onload = function () {
     const c = document.querySelector('#input');
@@ -217,10 +218,6 @@ function generatePath(currentPinIndex, c = 3) {
         LINE_OPACITY
       );
     }
-    setTimeout(function () {
-      lineCount++;
-      generatePath(nextPinIndex, c);
-    }, 10);
 
     if (lineCount % 50 == 0) {
       let MySVG = document.querySelector('#art svg').cloneNode(true);
@@ -233,31 +230,43 @@ function generatePath(currentPinIndex, c = 3) {
         console.log(`%${(mssim * 100).toFixed(2)} similar to original image`);
       });
     }
+	
+	setTimeout(function () {
+      lineCount++;
+      generatePath(nextPinIndex, c);
+    }, 10);
+	
   } else {
     console.log('process finished');
 
-    info.innerHTML = parameterString; // used settings for the current process
-
-    info.appendChild(document.createElement('br'));
-    var downloadData = info.appendChild(document.createElement('a'));
-
-    let combinedData = [];
+    info.innerHTML = "";
+    const downloadData = info.appendChild(document.createElement('a'));
+	
+    let combinedData = ["# Settings", parameterString, "", "# Pin Path"];
     for (let i = 0; i < linePath.length - 1; i++) {
       let lineInfo =
         linePath[i] +
         '->' +
         linePath[i + 1] +
-        ' | ' +
+        ` | ` +
         hexToString(colorData[i]);
       combinedData.push(lineInfo);
     }
     downloadData.download = 'pins-and-colors.txt';
 
-    console.log(combinedData);
-
     downloadData.href =
       'data:text/plain;base64,' + btoa(combinedData.join('\n'));
     downloadData.innerHTML = 'Download Data';
+	
+	
+	const downloadSVG = info.appendChild(document.createElement('a'));
+	const result = document.querySelector('#art svg')
+	result.setAttribute("xmlns","http://www.w3.org/2000/svg")
+	downloadSVG.download = 'result.svg'
+	downloadSVG.href =
+      'data:image/svg+xml;base64,' + btoa(new XMLSerializer().serializeToString(result));
+    downloadSVG.innerHTML = 'Download SVG';
+	
   }
 }
 function hexToString(hex) {

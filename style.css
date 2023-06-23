@@ -74,6 +74,7 @@ main {
 #info {
   display: none;
   text-align: center;
+  gap: 10px;
 }
 
 #thread-details {
