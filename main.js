@@ -3,6 +3,7 @@ var SIZE = 700,
   PIN_COUNT,
   MIN_DISTANCE,
   REDUCE_VALUE,
+  SAMPLE_PERCENT,
   LINE_OPACITY,
   LINE_THICKNESS,
   IS_COLORED,
@@ -11,7 +12,7 @@ var SIZE = 700,
 
 var parameterString,
   sketchImage,
-  imgDataCpy,
+  colorImage,
   colorData = [],
   linePath = [0],
   pins,
@@ -40,7 +41,8 @@ var colors = ['#e32322', '#008e5b', '#2a71b0', '#000000', '#f4e500'];
 var originalImage = new Image();
 originalImage.crossOrigin = 'anonymous';
 
-let input = document.querySelector('#input');
+var input = document.querySelector('#input');
+var ictx = input.getContext('2d');
 input.width = SIZE;
 input.height = SIZE;
 
@@ -56,19 +58,23 @@ function start() {
   MAX_LINE_COUNT = +parameters[1].value || 3600;
   PIN_COUNT = +parameters[2].value || 180;
   MIN_DISTANCE = +parameters[3].value || 8;
-  REDUCE_VALUE = +parameters[4].value || 0.1;
+  REDUCE_VALUE = +parameters[4].value || 10;
+  SAMPLE_PERCENT = +parameters[5].value || 100;
   LINE_OPACITY = 0.75;
-  IS_COLORED = parameters[5].checked;
-  BILATERAL_FAST_CHECK = parameters[6].checked;
-  BILATERAL_NORMAL_CHECK = parameters[7].checked;
+  IS_COLORED = parameters[6].checked;
+  BILATERAL_FAST_CHECK = parameters[7].checked;
+  BILATERAL_NORMAL_CHECK = parameters[8].checked;
   LINE_THICKNESS = 0.25;
 
   parameterString = `Line Count\t\t: ${MAX_LINE_COUNT}
 Pin Count\t\t: ${PIN_COUNT}
 Min Distance\t\t: ${MIN_DISTANCE}
 Color Reduce Amount\t: ${REDUCE_VALUE}
+Color Sample Percent\t: ${SAMPLE_PERCENT}
 Is Colored\t\t: ${IS_COLORED}
-Bilateral\t\t: ${BILATERAL_FAST_CHECK ? "Fast" : BILATERAL_NORMAL_CHECK ? "Normal" : "false"}`;
+Bilateral\t\t: ${
+    BILATERAL_FAST_CHECK ? 'Fast' : BILATERAL_NORMAL_CHECK ? 'Normal' : 'false'
+  }`;
 
   document.querySelector('#parameters').style.display = 'none';
   process.style.display = 'block';
@@ -114,7 +120,7 @@ Bilateral\t\t: ${BILATERAL_FAST_CHECK ? "Fast" : BILATERAL_NORMAL_CHECK ? "Norma
 
     originalImageData = ctx.getImageData(0, 0, SIZE, SIZE); // used for similarity comparision
     sketchImage = new Uint8ClampedArray(originalImageData.data); // used for increasing brightness
-    imgDataCpy = new Uint8ClampedArray(originalImageData.data); // used for reducing colors
+    colorImage = new Uint8ClampedArray(originalImageData.data); // used for reducing colors
 
     if (BILATERAL_FAST_CHECK) {
       const bf = new bilateralFilterFast();
@@ -126,7 +132,6 @@ Bilateral\t\t: ${BILATERAL_FAST_CHECK ? "Fast" : BILATERAL_NORMAL_CHECK ? "Norma
       bf.sigma = 4;
       bf.kernelsize = 4 * bf.sigma;
       sketchImage = bf.run(originalImageData).data; // used for increasing brightness
-      imgDataCpy = new Uint8ClampedArray(sketchImage); // used for reducing colors
     }
 
     if (IS_COLORED) {
@@ -138,11 +143,7 @@ Bilateral\t\t: ${BILATERAL_FAST_CHECK ? "Fast" : BILATERAL_NORMAL_CHECK ? "Norma
     pins = generatePins();
     ssim = window.ssim.default;
 
-    if (IS_COLORED) {
-      generatePath(0);
-    } else {
-      generatePath(0);
-    }
+    generatePath(0);
   };
 
   let thickness = document.querySelector('#thickness');
@@ -192,21 +193,20 @@ class Point {
   }
 }
 
-function generatePath(currentPinIndex, c = 3) {
+function generatePath(currentPinIndex) {
   if (lineCount <= MAX_LINE_COUNT) {
     elapsed.innerHTML = `${((lineCount * 100) / MAX_LINE_COUNT).toFixed(2)}%`;
 
-    let nextPinIndex = findNextBestPin(currentPinIndex, c);
+    let nextPinIndex = findNextBestPin(currentPinIndex);
     linePath.push(nextPinIndex);
 
-    decreaseDarkness(pins[currentPinIndex], pins[nextPinIndex], c);
+    decreaseDarkness(pins[currentPinIndex], pins[nextPinIndex]);
 
     let currP = pins[currentPinIndex];
     let nextP = pins[nextPinIndex];
 
     if (IS_COLORED) {
       colorData.push(colorizeLine(currP, nextP));
-      //colorData.push(colorizeLine2(currP, nextP, c));
     } else {
       svg.line(
         currP.x,
@@ -223,26 +223,22 @@ function generatePath(currentPinIndex, c = 3) {
       let MySVG = document.querySelector('#art svg').cloneNode(true);
       MySVG.prepend(whiteBg);
       svgToCanvas(MySVG).then((canv) => {
-        const { mssim } = ssim(canv, originalImageData, {
-          k1: 0.00000000000001,
-          k2: 0.00000000000001,
-        });
-        console.log(`%${(mssim * 100).toFixed(2)} similar to original image`);
+        const similarity = calculateSimilarity(canv, originalImageData);
+        console.log(`%${similarity} similar to original image`);
       });
     }
-	
-	setTimeout(function () {
+
+    setTimeout(function () {
       lineCount++;
-      generatePath(nextPinIndex, c);
-    }, 10);
-	
+      generatePath(nextPinIndex);
+    }, 5);
   } else {
     console.log('process finished');
 
-    info.innerHTML = "";
+    info.innerHTML = '';
     const downloadData = info.appendChild(document.createElement('a'));
-	
-    let combinedData = ["# Settings", parameterString, "", "# Pin Path"];
+
+    let combinedData = ['# Settings', parameterString, '', '# Pin Path'];
     for (let i = 0; i < linePath.length - 1; i++) {
       let lineInfo =
         linePath[i] +
@@ -257,16 +253,15 @@ function generatePath(currentPinIndex, c = 3) {
     downloadData.href =
       'data:text/plain;base64,' + btoa(combinedData.join('\n'));
     downloadData.innerHTML = 'Download Data';
-	
-	
-	const downloadSVG = info.appendChild(document.createElement('a'));
-	const result = document.querySelector('#art svg')
-	result.setAttribute("xmlns","http://www.w3.org/2000/svg")
-	downloadSVG.download = 'result.svg'
-	downloadSVG.href =
-      'data:image/svg+xml;base64,' + btoa(new XMLSerializer().serializeToString(result));
+
+    const downloadSVG = info.appendChild(document.createElement('a'));
+    const result = document.querySelector('#art svg');
+    result.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    downloadSVG.download = 'result.svg';
+    downloadSVG.href =
+      'data:image/svg+xml;base64,' +
+      btoa(new XMLSerializer().serializeToString(result));
     downloadSVG.innerHTML = 'Download SVG';
-	
   }
 }
 function hexToString(hex) {
@@ -283,9 +278,9 @@ function hexToString(hex) {
   }
 }
 
-function findNextBestPin(currentPinIndex, c) {
+function findNextBestPin(currentPinIndex) {
   let nextPinIndex;
-  let maxScore = [0, 0, 0, 0];
+  let maxScore = 0;
 
   for (let i = 0; i < pins.length; i++) {
     if (currentPinIndex == i || !isPinFarEnough(currentPinIndex, i)) {
@@ -293,12 +288,12 @@ function findNextBestPin(currentPinIndex, c) {
     }
 
     let vector = vectorPixelsFromAtoB(pins[currentPinIndex], pins[i]);
-    let score = calculateVectorScore(vector, c);
+    let score = calculateVectorScore(vector);
 
     // SCORE FOR other colors
 
-    if (score[c] >= maxScore[c]) {
-      maxScore[c] = score[c];
+    if (score >= maxScore) {
+      maxScore = score;
       nextPinIndex = i;
     }
   }
@@ -351,8 +346,8 @@ function vectorPixelsFromAtoB(a, b) {
   return coordinatesArray;
 }
 
-function calculateVectorScore(vector, c = 3) {
-  let score = [0, 0, 0, 0];
+function calculateVectorScore(vector) {
+  let score = 0;
 
   vector.forEach(function (pixel) {
     let indicesRGB = getRGBIndices(pixel.x, pixel.y);
@@ -361,7 +356,7 @@ function calculateVectorScore(vector, c = 3) {
       sketchImage[indicesRGB[1]],
       sketchImage[indicesRGB[2]]
     );
-    score[3] += (1 - hslColor[2]) / vector.length; // darkness = 1 - lightness
+    score += (1 - hslColor[2]) / vector.length; // darkness = 1 - lightness
   });
   return score;
 }
@@ -372,7 +367,7 @@ function getRGBIndices(x, y) {
   return [redIndex, redIndex + 1, redIndex + 2];
 }
 
-function decreaseDarkness(a, b, c = 3) {
+function decreaseDarkness(a, b) {
   let vector = vectorPixelsFromAtoB(a, b);
   vector.forEach(function (pixel) {
     let indicesRGB = getRGBIndices(pixel.x, pixel.y);
@@ -387,11 +382,16 @@ function decreaseDarkness(a, b, c = 3) {
     let rgbColor = hsl2rgb(
       hslColor[0],
       hslColor[1],
-      hslColor[2] + REDUCE_VALUE
+      hslColor[2] + REDUCE_VALUE / 100
     );
     sketchImage[indicesRGB[0]] = rgbColor[0];
     sketchImage[indicesRGB[1]] = rgbColor[1];
     sketchImage[indicesRGB[2]] = rgbColor[2];
+
+    /* if (linePath.length % 50 == 0) {
+      ictx.putImageData(arrayToImageData(sketchImage), 0, 0);
+    } */
+
     // TODO: check if it is necessary
     /* if (imgData[getColor(pixel.x, pixel.y)[0]] > 255) {
       imgData[getColor(pixel.x, pixel.y)[0]] = 255;
@@ -460,17 +460,31 @@ function colorizeLine(a, b) {
   let vector = vectorPixelsFromAtoB(a, b);
   vector.forEach(function (pixel) {
     let indicesRGB = getRGBIndices(pixel.x, pixel.y);
-    color[0] += imgDataCpy[indicesRGB[0]];
-    color[1] += imgDataCpy[indicesRGB[1]];
-    color[2] += imgDataCpy[indicesRGB[2]];
+    color[0] += colorImage[indicesRGB[0]];
+    color[1] += colorImage[indicesRGB[1]];
+    color[2] += colorImage[indicesRGB[2]];
   });
+
+  for (let i = 0; i < vector.length; i++) {
+    // center of the vector
+    if (
+      Math.abs(vector.length / 2 - i) <=
+      (vector.length * SAMPLE_PERCENT) / 100 / 2
+    ) {
+      let pixel = vector[i];
+      let indicesRGB = getRGBIndices(pixel.x, pixel.y);
+      color[0] += colorImage[indicesRGB[0]];
+      color[1] += colorImage[indicesRGB[1]];
+      color[2] += colorImage[indicesRGB[2]];
+    }
+  }
 
   color = color.map((c1) => Math.round(c1 / vector.length));
 
   let c = findBestColorAndReduceOriginalSourceColor(
     color,
     vector,
-    REDUCE_VALUE * 350
+    REDUCE_VALUE * 3.5
   );
 
   /* svg
@@ -499,17 +513,16 @@ function findBestColorAndReduceOriginalSourceColor(color, vector, reduce) {
   vector.forEach(function (pixel) {
     let indicesRGB = getRGBIndices(pixel.x, pixel.y);
     if (c == 4) {
-      imgDataCpy[indicesRGB[0]] -= reduce / 2;
-      imgDataCpy[indicesRGB[1]] -= reduce / 2;
+      colorImage[indicesRGB[0]] -= reduce / 2;
+      colorImage[indicesRGB[1]] -= reduce / 2;
     } else if (c == 3) {
-      imgDataCpy[indicesRGB[0]] -= reduce / 3;
-      imgDataCpy[indicesRGB[1]] -= reduce / 3;
-      imgDataCpy[indicesRGB[2]] -= reduce / 3;
+      colorImage[indicesRGB[0]] -= reduce / 3;
+      colorImage[indicesRGB[1]] -= reduce / 3;
+      colorImage[indicesRGB[2]] -= reduce / 3;
     } else {
-      imgDataCpy[indicesRGB[c]] -= reduce;
+      colorImage[indicesRGB[c]] -= reduce;
     }
   });
-
   return colors[c];
 }
 
@@ -550,4 +563,13 @@ function svgToCanvas(art) {
     };
     img.src = 'data:image/svg+xml;base64,' + encodedData;
   });
+}
+
+function calculateSimilarity(img1, img2) {
+  const { mssim } = ssim(img1, img2, {
+    k1: 0.00000000000001,
+    k2: 0.00000000000001,
+  });
+
+  return (mssim * 100).toFixed(2);
 }
