@@ -304,8 +304,8 @@ function generatePath(currentPinIndex) {
         linePath[i] +
         ' -> ' +
         linePath[i + 1] +
-        ` | ` +
-        hexToString(colorData[i]);
+        `\t| ` +
+        colorData[i];
       combinedData.push(lineInfo);
     }
 
@@ -317,19 +317,6 @@ function generatePath(currentPinIndex) {
     downloadSVG.href =
       'data:image/svg+xml;base64,' +
       btoa(new XMLSerializer().serializeToString(resultSVG));
-  }
-}
-function hexToString(hex) {
-  if (hex == '#e32322') {
-    return 'red';
-  } else if (hex == '#008e5b') {
-    return 'green';
-  } else if (hex == '#2a71b0') {
-    return 'blue';
-  } else if (hex == '#f4e500') {
-    return 'yellow';
-  } else {
-    return 'black';
   }
 }
 
