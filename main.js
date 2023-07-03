@@ -31,7 +31,14 @@ whiteBg.setAttribute('fill', 'white');
 
 var info = (info = document.querySelector('#info'));
 var downloadData = info.appendChild(document.createElement('a'));
+downloadData.download = 'pins-and-colors.txt';
+downloadData.innerHTML = 'Download Data';
 var combinedData = [];
+
+var downloadSVG = info.appendChild(document.createElement('a'));
+downloadSVG.download = 'result.svg';
+downloadSVG.innerHTML = 'Download SVG';
+
 var colors = ['red', 'green', 'blue', 'black', 'yellow'];
 var colorTones = {
   red: '#e32322',
@@ -258,6 +265,10 @@ function generatePath(currentPinIndex) {
           combinedData[4] = selectedColors.join('\n');
           downloadData.href =
             'data:text/plain;base64,' + btoa(combinedData.join('\n'));
+          const resultSVG = document.querySelector('#art svg');
+          downloadSVG.href =
+            'data:image/svg+xml;base64,' +
+            btoa(new XMLSerializer().serializeToString(resultSVG));
         });
       });
     }
@@ -282,20 +293,15 @@ function generatePath(currentPinIndex) {
         hexToString(colorData[i]);
       combinedData.push(lineInfo);
     }
-    downloadData.download = 'pins-and-colors.txt';
 
     downloadData.href =
       'data:text/plain;base64,' + btoa(combinedData.join('\n'));
-    downloadData.innerHTML = 'Download Data';
 
-    const downloadSVG = info.appendChild(document.createElement('a'));
-    const result = document.querySelector('#art svg');
-    result.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    downloadSVG.download = 'result.svg';
+    const resultSVG = document.querySelector('#art svg');
+    resultSVG.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     downloadSVG.href =
       'data:image/svg+xml;base64,' +
-      btoa(new XMLSerializer().serializeToString(result));
-    downloadSVG.innerHTML = 'Download SVG';
+      btoa(new XMLSerializer().serializeToString(resultSVG));
   }
 }
 function hexToString(hex) {
