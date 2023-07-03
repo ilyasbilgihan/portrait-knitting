@@ -32,12 +32,10 @@ whiteBg.setAttribute('fill', 'white');
 var info = (info = document.querySelector('#info'));
 var downloadData = info.appendChild(document.createElement('a'));
 downloadData.download = 'pins-and-colors.txt';
-downloadData.innerHTML = 'Download Data';
 var combinedData = [];
 
 var downloadSVG = info.appendChild(document.createElement('a'));
 downloadSVG.download = 'result.svg';
-downloadSVG.innerHTML = 'Download SVG';
 
 var colors = ['red', 'green', 'blue', 'black', 'yellow'];
 var colorTones = {
@@ -60,7 +58,8 @@ var svg = new SVG(SIZE, SIZE, '#art');
 var colorAdjustment = document.querySelector('#color-adjustment');
 var colorControls = document.querySelectorAll('#color-adjustment input');
 
-var elapsed = document.querySelector('#elapsed');
+var sim = document.querySelector('#similarity div');
+var similarityHistory = [];
 
 function start() {
   let parameters = [...document.querySelectorAll('#parameters input')];
@@ -72,7 +71,7 @@ function start() {
   MIN_DISTANCE = +parameters[3].value || 8;
   REDUCE_VALUE = +parameters[4].value || 10;
   SAMPLE_PERCENT = +parameters[5].value || 100;
-  LINE_OPACITY = 0.75;
+  LINE_OPACITY = 0.8;
   IS_COLORED = parameters[6].checked;
   BILATERAL_FAST_CHECK = parameters[7].checked;
   BILATERAL_NORMAL_CHECK = parameters[8].checked;
@@ -206,7 +205,10 @@ class Point {
 
 function generatePath(currentPinIndex) {
   if (lineCount <= MAX_LINE_COUNT) {
-    elapsed.innerHTML = `${((lineCount * 100) / MAX_LINE_COUNT).toFixed(2)}%`;
+    document.querySelector('#info span').innerHTML = `${(
+      (lineCount * 100) /
+      MAX_LINE_COUNT
+    ).toFixed(2)}%`;
 
     let nextPinIndex = findNextBestPin(currentPinIndex);
     linePath.push(nextPinIndex);
@@ -231,8 +233,10 @@ function generatePath(currentPinIndex) {
       );
     }
 
-    if (lineCount % 50 == 0) {
-      calculateSimilarity();
+    if (lineCount % 50 == 0 || lineCount >= MAX_LINE_COUNT) {
+      calculateSimilarity().then((similarity) => {
+        similarityHistory.push(similarity);
+      });
     }
 
     setTimeout(function () {
@@ -274,6 +278,10 @@ function generatePath(currentPinIndex) {
     }
 
     document.querySelector('#info span').remove();
+    downloadData.innerHTML = 'Download Data';
+    downloadSVG.innerHTML = 'Download SVG';
+
+    console.log(similarityHistory);
 
     combinedData = [
       '# Settings',
@@ -282,12 +290,19 @@ function generatePath(currentPinIndex) {
       '# Color Tones',
       `Red tone\t: #e32322\nGreen tone\t: #008e5b\nBlue tone\t: #2a71b0\nYellow tone\t: #f4e500\nBlack tone\t: #000000`,
       '',
+      '# Best Similarity: ~line:' +
+        50 *
+          (similarityHistory.indexOf(`${Math.max(...similarityHistory)}`) + 1),
+      '',
       '# Pin Path',
     ];
     for (let i = 0; i < linePath.length - 1; i++) {
       let lineInfo =
+        i +
+        1 +
+        '\t: ' +
         linePath[i] +
-        '->' +
+        ' -> ' +
         linePath[i + 1] +
         ` | ` +
         hexToString(colorData[i]);
@@ -606,16 +621,19 @@ function svgToCanvas(art) {
 }
 
 function calculateSimilarity() {
-  let MySVG = document.querySelector('#art svg').cloneNode(true);
-  MySVG.prepend(whiteBg);
-  svgToCanvas(MySVG).then((canv) => {
-    const { mssim } = ssim(canv, originalImageData, {
-      k1: 0.00000000000001,
-      k2: 0.00000000000001,
-    });
+  return new Promise((resolve, reject) => {
+    let MySVG = document.querySelector('#art svg').cloneNode(true);
+    MySVG.prepend(whiteBg);
+    svgToCanvas(MySVG).then((canv) => {
+      const { mssim } = ssim(canv, originalImageData, {
+        k1: 0.00000000000001,
+        k2: 0.00000000000001,
+      });
 
-    let similarity = (mssim * 100).toFixed(2);
-    console.log(`%${similarity} similar to original image`);
-    return similarity;
+      let similarity = (mssim * 100).toFixed(2);
+      console.log(`%${similarity} similar to original image`);
+      sim.innerHTML = `Similarity: ${similarity}%`;
+      resolve(similarity);
+    });
   });
 }

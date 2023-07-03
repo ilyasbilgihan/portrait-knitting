@@ -103,3 +103,15 @@ main {
   margin-bottom: 8px;
   gap: 4px;
 }
+
+#similarity {
+  display: flex;
+  gap: 8px;
+}
+
+#similarity span {
+  color: #008e5b;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: underline;
+}
