@@ -71,31 +71,63 @@
       </div>
 
       <div id="process">
-        <div class="top-bar">
-          <div id="thread-details">
-            <label title="Thread (line) thickness">
-              <span>Thickness</span>
-              <input id="thickness" type="range" min="0" max="100" value="6" />
-            </label>
-            <label title="Thread (line) opaque">
-              <span>Opaque</span>
-              <input id="opaque" type="range" min="0" max="100" value="75" />
-            </label>
-          </div>
-          <div id="elapsed"></div>
-        </div>
-        <div class="before-after">
-          <input type="range" />
-          <div class="images">
-            <div class="before">
-              <canvas id="input"></canvas>
+        <div>
+          <div class="top-bar">
+            <div id="thread-details">
+              <label title="Thread (line) thickness">
+                <span>Thickness</span>
+                <input
+                  id="thickness"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value="6"
+                />
+              </label>
+              <label title="Thread (line) opaque">
+                <span>Opaque</span>
+                <input id="opaque" type="range" min="0" max="100" value="75" />
+              </label>
             </div>
-            <div class="after" id="art"></div>
+            <div id="elapsed"></div>
           </div>
+          <div class="before-after">
+            <input type="range" />
+            <div class="images">
+              <div class="before">
+                <canvas id="input"></canvas>
+              </div>
+              <div class="after" id="art"></div>
+            </div>
+          </div>
+        </div>
+        <div id="color-adjustment">
+          <h3>Adjust color tones as you like</h3>
+          <br />
+          <label>
+            <span>Red Tone: </span>
+            <input type="color" value="#e32322" />
+          </label>
+          <label>
+            <span>Green Tone: </span>
+            <input type="color" value="#008e5b" />
+          </label>
+          <label>
+            <span>Blue Tone: </span>
+            <input type="color" value="#2a71b0" />
+          </label>
+          <label>
+            <span>Yellow Tone: </span>
+            <input type="color" value="#f4e500" />
+          </label>
+          <label>
+            <span>Black Tone: </span>
+            <input type="color" value="#000000" />
+          </label>
         </div>
       </div>
 
-      <div id="info">Processing...</div>
+      <div id="info"><span>Processing...</span></div>
     </main>
   </body>
 </html>

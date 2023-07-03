@@ -29,14 +29,17 @@ whiteBg.setAttribute('cy', '50%');
 whiteBg.setAttribute('r', SIZE / 2);
 whiteBg.setAttribute('fill', 'white');
 
-var colors = ['#e32322', '#008e5b', '#2a71b0', '#000000', '#f4e500'];
-// var colors = ['#ff0000', '#00ff00', '#0000ff', '#000000', '#ffff00'];
-/* var colorsRGB = [
-  [227, 35, 34],
-  [244, 229, 0],
-  [42, 113, 176],
-  [0, 0, 0],
-]; */
+var info = (info = document.querySelector('#info'));
+var downloadData = info.appendChild(document.createElement('a'));
+var combinedData = [];
+var colors = ['red', 'green', 'blue', 'black', 'yellow'];
+var colorTones = {
+  red: '#e32322',
+  green: '#008e5b',
+  blue: '#2a71b0',
+  yellow: '#f4e500',
+  black: '#000000',
+};
 
 var originalImage = new Image();
 originalImage.crossOrigin = 'anonymous';
@@ -47,6 +50,8 @@ input.width = SIZE;
 input.height = SIZE;
 
 var svg = new SVG(SIZE, SIZE, '#art');
+var colorAdjustment = document.querySelector('#color-adjustment');
+var colorControls = document.querySelectorAll('#color-adjustment input');
 
 var elapsed = document.querySelector('#elapsed');
 
@@ -77,9 +82,8 @@ Bilateral\t\t: ${
   }`;
 
   document.querySelector('#parameters').style.display = 'none';
-  process.style.display = 'block';
+  process.style.display = 'flex';
 
-  info = document.querySelector('#info');
   info.style.display = 'flex';
 
   originalImage.onload = function () {
@@ -214,18 +218,14 @@ function generatePath(currentPinIndex) {
         nextP.x,
         nextP.y,
         `black`,
+        'black',
         LINE_THICKNESS,
         LINE_OPACITY
       );
     }
 
     if (lineCount % 50 == 0) {
-      let MySVG = document.querySelector('#art svg').cloneNode(true);
-      MySVG.prepend(whiteBg);
-      svgToCanvas(MySVG).then((canv) => {
-        const similarity = calculateSimilarity(canv, originalImageData);
-        console.log(`%${similarity} similar to original image`);
-      });
+      calculateSimilarity();
     }
 
     setTimeout(function () {
@@ -235,10 +235,44 @@ function generatePath(currentPinIndex) {
   } else {
     console.log('process finished');
 
-    info.innerHTML = '';
-    const downloadData = info.appendChild(document.createElement('a'));
+    if (IS_COLORED) {
+      colorAdjustment.style.display = 'grid';
+      let colorInputs = [...colorControls];
+      let selectedColors = [
+        'Red tone\t: #e32322',
+        'Green tone\t: #008e5b',
+        'Blue tone\t: #2a71b0',
+        'Yellow tone\t: #f4e500',
+        'Black tone\t: #000000',
+      ];
+      colorInputs.forEach((input, i) => {
+        input.addEventListener('input', function (e) {
+          let color = e.target.value;
 
-    let combinedData = ['# Settings', parameterString, '', '# Pin Path'];
+          let lines = [...document.querySelectorAll(`line.${colors[i]}`)];
+          lines.forEach((line) => {
+            line.setAttribute('stroke', color);
+          });
+
+          selectedColors[i] = selectedColors[i].replace(/\#.+/i, color);
+          combinedData[4] = selectedColors.join('\n');
+          downloadData.href =
+            'data:text/plain;base64,' + btoa(combinedData.join('\n'));
+        });
+      });
+    }
+
+    document.querySelector('#info span').remove();
+
+    combinedData = [
+      '# Settings',
+      parameterString,
+      '',
+      '# Color Tones',
+      `Red tone\t: #e32322\nGreen tone\t: #008e5b\nBlue tone\t: #2a71b0\nYellow tone\t: #f4e500\nBlack tone\t: #000000`,
+      '',
+      '# Pin Path',
+    ];
     for (let i = 0; i < linePath.length - 1; i++) {
       let lineInfo =
         linePath[i] +
@@ -491,7 +525,7 @@ function colorizeLine(a, b) {
     .line(a.x, a.y, b.x, b.y)
     .stroke({ color: c, width: 0.5, opacity: LINE_OPACITY }); */
 
-  svg.line(a.x, a.y, b.x, b.y, c, LINE_THICKNESS, LINE_OPACITY);
+  svg.line(a.x, a.y, b.x, b.y, c, colorTones[c], LINE_THICKNESS, LINE_OPACITY);
   return c;
 }
 
@@ -565,11 +599,17 @@ function svgToCanvas(art) {
   });
 }
 
-function calculateSimilarity(img1, img2) {
-  const { mssim } = ssim(img1, img2, {
-    k1: 0.00000000000001,
-    k2: 0.00000000000001,
-  });
+function calculateSimilarity() {
+  let MySVG = document.querySelector('#art svg').cloneNode(true);
+  MySVG.prepend(whiteBg);
+  svgToCanvas(MySVG).then((canv) => {
+    const { mssim } = ssim(canv, originalImageData, {
+      k1: 0.00000000000001,
+      k2: 0.00000000000001,
+    });
 
-  return (mssim * 100).toFixed(2);
+    let similarity = (mssim * 100).toFixed(2);
+    console.log(`%${similarity} similar to original image`);
+    return similarity;
+  });
 }
