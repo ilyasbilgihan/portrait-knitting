@@ -29,28 +29,57 @@
       </div>
 
       <div id="parameters">
-        <input title="Source Image URL" type="text" placeholder="Image URL" />
-        <input type="number" title="Affects the lines" placeholder="Max Line" />
-        <input
-          type="number"
-          title="Affects the lines"
-          placeholder="Pin Count"
-        />
-        <input
-          type="number"
-          title="Affects the lines"
-          placeholder="Min Distance"
-        />
-        <input
-          type="number"
-          title="Affects the lines"
-          placeholder="Color Reduce Amount (%)"
-        />
-        <input
-          type="number"
-          title="Sample percent of the pixels of each linear string. (sample always from the middle of the string)"
-          placeholder="Color Sample Percent (0-100)"
-        />
+        <div>
+          <input title="Source Image URL" type="text" placeholder="Image URL" />
+        </div>
+        <div>
+          <input
+            type="number"
+            title="Max number of linear strings to be knitted"
+            placeholder="Max Line"
+          />
+          <span>3600</span>
+        </div>
+        <div>
+          <input
+            type="number"
+            title="Numbor of pins around the circular canvas"
+            placeholder="Pin Count"
+          />
+          <span>180</span>
+        </div>
+        <div>
+          <input
+            type="number"
+            title="Min pin count between linear strings' start and end points"
+            placeholder="Min Distance"
+          />
+          <span>8</span>
+        </div>
+        <div>
+          <input
+            type="number"
+            title="Also means lightness increase amount"
+            placeholder="Darkness Reduce Percent (0-100)"
+          />
+          <span>10</span>
+        </div>
+        <div>
+          <input
+            type="number"
+            title="Color reduce"
+            placeholder="Color Reduce Amount (0-255)"
+          />
+          <span>45</span>
+        </div>
+        <div>
+          <input
+            type="number"
+            title="Sample percent of the pixels of each linear string. (sample is always from the middle of the string)"
+            placeholder="Color Sample Percent (0-100)"
+          />
+          <span>100</span>
+        </div>
         <label title="Affects the lines" for="colored">
           <input type="checkbox" id="colored" />
           <span>Colored lines</span>
@@ -67,9 +96,8 @@
           <input type="radio" name="bilateral" value="false" checked />
           <span>No Bilateral</span>
         </label>
-        <button id="start" onclick="start()">Start Process</button>
       </div>
-
+      <canvas id="custom-pin-area"></canvas>
       <div id="process">
         <div>
           <div class="top-bar">
@@ -105,31 +133,43 @@
           </div>
         </div>
         <div id="color-adjustment">
-          <h3>Adjust color tones as you like</h3>
+          <div id="canvas-background">
+            <h3>Canvas Background:</h3>
+            <input type="color" value="#ffffff" />
+          </div>
           <br />
-          <label>
-            <span>Red Tone: </span>
-            <input type="color" value="#e32322" />
-          </label>
-          <label>
-            <span>Green Tone: </span>
-            <input type="color" value="#008e5b" />
-          </label>
-          <label>
-            <span>Blue Tone: </span>
-            <input type="color" value="#2a71b0" />
-          </label>
-          <label>
-            <span>Yellow Tone: </span>
-            <input type="color" value="#f4e500" />
-          </label>
-          <label>
-            <span>Black Tone: </span>
-            <input type="color" value="#000000" />
-          </label>
+          <div id="color-tones">
+            <h3>Adjust color tones as you like</h3>
+            <br />
+            <label>
+              <span>Red Tone: </span>
+              <input type="color" value="#e32322" />
+            </label>
+            <label>
+              <span>Green Tone: </span>
+              <input type="color" value="#008e5b" />
+            </label>
+            <label>
+              <span>Blue Tone: </span>
+              <input type="color" value="#2a71b0" />
+            </label>
+            <label>
+              <span>Yellow Tone: </span>
+              <input type="color" value="#f4e500" />
+            </label>
+            <label>
+              <span>Black Tone: </span>
+              <input type="color" value="#000000" />
+            </label>
+          </div>
         </div>
       </div>
-
+      <div class="buttons">
+        <button class="button custom" onclick="customPins()">
+          Custom Pins
+        </button>
+        <button class="button" onclick="start()">Start Process</button>
+      </div>
       <div id="info"><span>Processing...</span></div>
     </main>
   </body>

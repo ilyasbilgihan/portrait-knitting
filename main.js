@@ -2,7 +2,8 @@ var SIZE = 700,
   MAX_LINE_COUNT,
   PIN_COUNT,
   MIN_DISTANCE,
-  REDUCE_VALUE,
+  D_REDUCE_VALUE,
+  C_REDUCE_VALUE,
   SAMPLE_PERCENT,
   LINE_OPACITY,
   LINE_THICKNESS,
@@ -15,21 +16,13 @@ var parameterString,
   colorImage,
   colorData = [],
   linePath = [0],
-  pins,
+  pins = [],
+  customPinPositions = [],
   lineCount = 0,
-  info;
-
+  pinArea = document.querySelector('#custom-pin-area');
 var ssim, originalImageData;
-const whiteBg = document.createElementNS(
-  'http://www.w3.org/2000/svg',
-  'circle'
-);
-whiteBg.setAttribute('cx', '50%');
-whiteBg.setAttribute('cy', '50%');
-whiteBg.setAttribute('r', SIZE / 2);
-whiteBg.setAttribute('fill', 'white');
 
-var info = (info = document.querySelector('#info'));
+var info = document.querySelector('#info');
 var downloadData = info.appendChild(document.createElement('a'));
 downloadData.download = 'pins-and-colors.txt';
 var combinedData = [];
@@ -37,7 +30,7 @@ var combinedData = [];
 var downloadSVG = info.appendChild(document.createElement('a'));
 downloadSVG.download = 'result.svg';
 
-var colors = ['red', 'green', 'blue', 'black', 'yellow'];
+var colors = ['red', 'green', 'blue', 'yellow', 'black'];
 var colorTones = {
   red: '#e32322',
   green: '#008e5b',
@@ -55,32 +48,41 @@ input.width = SIZE;
 input.height = SIZE;
 
 var svg = new SVG(SIZE, SIZE, '#art');
+var canvasBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+canvasBg.setAttribute('cx', '50%');
+canvasBg.setAttribute('cy', '50%');
+canvasBg.setAttribute('r', SIZE / 2);
+canvasBg.setAttribute('fill', 'white');
+
+document.querySelector('#art svg').prepend(canvasBg);
+
 var colorAdjustment = document.querySelector('#color-adjustment');
-var colorControls = document.querySelectorAll('#color-adjustment input');
+var colorControls = document.querySelectorAll('#color-tones input');
+var canvasBgControl = document.querySelector('#canvas-background input');
 
 var sim = document.querySelector('#similarity div');
 var similarityHistory = [];
 
-function start() {
+function preProcess() {
   let parameters = [...document.querySelectorAll('#parameters input')];
-  let process = document.querySelector('#process');
 
   originalImage.src = parameters[0].value || 'https://i.imgur.com/6nlVY3F.png';
   MAX_LINE_COUNT = +parameters[1].value || 3600;
   PIN_COUNT = +parameters[2].value || 180;
   MIN_DISTANCE = +parameters[3].value || 8;
-  REDUCE_VALUE = +parameters[4].value || 10;
-  SAMPLE_PERCENT = +parameters[5].value || 100;
+  D_REDUCE_VALUE = +parameters[4].value || 10;
+  C_REDUCE_VALUE = +parameters[5].value || 45;
+  SAMPLE_PERCENT = +parameters[6].value || 100;
   LINE_OPACITY = 0.8;
-  IS_COLORED = parameters[6].checked;
-  BILATERAL_FAST_CHECK = parameters[7].checked;
-  BILATERAL_NORMAL_CHECK = parameters[8].checked;
-  LINE_THICKNESS = 0.25;
+  IS_COLORED = parameters[7].checked;
+  BILATERAL_FAST_CHECK = parameters[8].checked;
+  BILATERAL_NORMAL_CHECK = parameters[9].checked;
+  LINE_THICKNESS = 1 / 3;
 
   parameterString = `Line Count\t\t: ${MAX_LINE_COUNT}
 Pin Count\t\t: ${PIN_COUNT}
 Min Distance\t\t: ${MIN_DISTANCE}
-Color Reduce Amount\t: ${REDUCE_VALUE}
+Color Reduce Amount\t: ${D_REDUCE_VALUE}
 Color Sample Percent\t: ${SAMPLE_PERCENT}
 Is Colored\t\t: ${IS_COLORED}
 Bilateral\t\t: ${
@@ -88,9 +90,54 @@ Bilateral\t\t: ${
   }`;
 
   document.querySelector('#parameters').style.display = 'none';
-  process.style.display = 'flex';
+}
 
+function customPins() {
+  preProcess();
+  document.querySelector('.button.custom').style.display = 'none';
+  pinArea.width = SIZE;
+  pinArea.height = SIZE;
+  pinArea.style.display = 'block';
+
+  originalImage.onload = function () {
+    const ctx = pinArea.getContext('2d');
+
+    let sourceSize = Math.min(originalImage.width, originalImage.height);
+    ctx.drawImage(
+      originalImage,
+      0,
+      0,
+      sourceSize,
+      sourceSize,
+      0,
+      0,
+      SIZE,
+      SIZE
+    );
+
+    ctx.fillStyle = 'red';
+
+    pinArea.addEventListener('click', function (e) {
+      let x = e.offsetX;
+      let y = e.offsetY;
+      let pin = new Point(x, y);
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, 2 * Math.PI);
+      ctx.fill();
+      customPinPositions.push(pin);
+    });
+
+    pins = customPinPositions;
+  };
+}
+
+function start() {
+  preProcess();
   info.style.display = 'flex';
+  document.querySelector('.top-bar').style.display = 'flex';
+  document.querySelector('.buttons').style.display = 'none';
+  document.querySelector('#process').style.display = 'flex';
+  pinArea.style.display = 'none';
 
   originalImage.onload = function () {
     const c = document.querySelector('#input');
@@ -150,21 +197,21 @@ Bilateral\t\t: ${
       ctx.putImageData(arrayToImageData(rgbToGrayscale(sketchImage)), 0, 0);
     }
 
-    pins = generatePins();
+    pins = [...generatePins(), ...pins];
     ssim = window.ssim.default;
 
     generatePath(0);
   };
 
   let thickness = document.querySelector('#thickness');
-  thickness.value = 6;
+  thickness.value = 17;
   let opaque = document.querySelector('#opaque');
   opaque.value = LINE_OPACITY * 100;
 
   thickness.addEventListener('input', function (e) {
-    LINE_THICKNESS = e.target.value / 25;
+    LINE_THICKNESS = e.target.value / 50;
     [...svg.svg.querySelectorAll('line')].map((l) => {
-      l.setAttribute('stroke-width', e.target.value / 25);
+      l.setAttribute('stroke-width', e.target.value / 50);
     });
   });
 
@@ -179,7 +226,7 @@ Bilateral\t\t: ${
 function generatePins(pinCount = PIN_COUNT, diameter = SIZE) {
   let radius = diameter / 2;
   let angle = (Math.PI * 2) / pinCount; // Angle between d1 and d2 vectors which are (d1.x, d1.y) and (d2.x, d2.y)
-  let pins = [];
+  let tmpPins = [];
 
   for (let k = 0; k < pinCount; k++) {
     let x = Math.round(radius + radius * Math.cos(k * angle));
@@ -189,11 +236,11 @@ function generatePins(pinCount = PIN_COUNT, diameter = SIZE) {
     x == SIZE ? x-- : '';
     y == SIZE ? y-- : '';
 
-    pins.push(new Point(x, y));
+    tmpPins.push(new Point(x, y));
     // svg.rect(x, y, 1, 1, "red"); // show pins
   }
 
-  return pins;
+  return tmpPins;
 }
 
 class Point {
@@ -248,6 +295,11 @@ function generatePath(currentPinIndex) {
 
     if (IS_COLORED) {
       colorAdjustment.style.display = 'grid';
+      canvasBgControl.addEventListener('input', function (e) {
+        let color = e.target.value;
+        document.querySelector('#art svg circle').setAttribute('fill', color);
+      });
+
       let colorInputs = [...colorControls];
       let selectedColors = [
         'Red tone\t: #e32322',
@@ -284,28 +336,29 @@ function generatePath(currentPinIndex) {
     console.log(similarityHistory);
 
     combinedData = [
-      '# Settings',
+      '# Paramaters Used:',
       parameterString,
       '',
-      '# Color Tones',
+      '# Color Tones:',
       `Red tone\t: #e32322\nGreen tone\t: #008e5b\nBlue tone\t: #2a71b0\nYellow tone\t: #f4e500\nBlack tone\t: #000000`,
       '',
-      '# Best Similarity: ~line:' +
+      '# Best Similarity:',
+      '~line:' +
         50 *
           (similarityHistory.indexOf(`${Math.max(...similarityHistory)}`) + 1),
       '',
-      '# Pin Path',
+      '# Custom Pins (for 700x700 resolution):',
+      customPinPositions
+        .map((p, i) => `Pin#${PIN_COUNT + i}: ${p.x}, ${p.y}`)
+        .join('\n') || 'none',
+      '',
+      '# Pin Path:',
     ];
     for (let i = 0; i < linePath.length - 1; i++) {
-      let lineInfo =
-        i +
-        1 +
-        '\t: ' +
-        linePath[i] +
-        ' -> ' +
-        linePath[i + 1] +
-        `\t| ` +
-        colorData[i];
+      let lineInfo = `${i + 1}\t: ${linePath[i]} -> ${linePath[i + 1]} ${
+        colorData[i] ? ` \t| ${colorData[i]}` : ''
+      }`;
+
       combinedData.push(lineInfo);
     }
 
@@ -424,7 +477,7 @@ function decreaseDarkness(a, b) {
     let rgbColor = hsl2rgb(
       hslColor[0],
       hslColor[1],
-      hslColor[2] + REDUCE_VALUE / 100
+      hslColor[2] + D_REDUCE_VALUE / 100
     );
     sketchImage[indicesRGB[0]] = rgbColor[0];
     sketchImage[indicesRGB[1]] = rgbColor[1];
@@ -497,36 +550,13 @@ function rgb2hsl(r, g, b) {
 }
 
 function colorizeLine(a, b) {
-  let color = [0, 0, 0];
-
   let vector = vectorPixelsFromAtoB(a, b);
-  vector.forEach(function (pixel) {
-    let indicesRGB = getRGBIndices(pixel.x, pixel.y);
-    color[0] += colorImage[indicesRGB[0]];
-    color[1] += colorImage[indicesRGB[1]];
-    color[2] += colorImage[indicesRGB[2]];
-  });
-
-  for (let i = 0; i < vector.length; i++) {
-    // center of the vector
-    if (
-      Math.abs(vector.length / 2 - i) <=
-      (vector.length * SAMPLE_PERCENT) / 100 / 2
-    ) {
-      let pixel = vector[i];
-      let indicesRGB = getRGBIndices(pixel.x, pixel.y);
-      color[0] += colorImage[indicesRGB[0]];
-      color[1] += colorImage[indicesRGB[1]];
-      color[2] += colorImage[indicesRGB[2]];
-    }
-  }
-
-  color = color.map((c1) => Math.round(c1 / vector.length));
+  let color = calculateAverageColor(vector);
 
   let c = findBestColorAndReduceOriginalSourceColor(
     color,
     vector,
-    REDUCE_VALUE * 3.5
+    C_REDUCE_VALUE
   );
 
   /* svg
@@ -537,6 +567,24 @@ function colorizeLine(a, b) {
   return c;
 }
 
+function calculateAverageColor(vector) {
+  let color = [0, 0, 0];
+
+  let start = Math.round((vector.length * (1 - SAMPLE_PERCENT / 100)) / 2);
+  let end = Math.round(start + (vector.length * SAMPLE_PERCENT) / 100);
+  for (let i = start; i < end; i++) {
+    // center of the vector
+    let pixel = vector[i];
+    let indicesRGB = getRGBIndices(pixel.x, pixel.y);
+    color[0] += colorImage[indicesRGB[0]];
+    color[1] += colorImage[indicesRGB[1]];
+    color[2] += colorImage[indicesRGB[2]];
+  }
+
+  color = color.map((c1) => Math.round(c1 / (end - start)));
+  return color;
+}
+
 function findBestColorAndReduceOriginalSourceColor(color, vector, reduce) {
   let max = Math.max(color[0], color[1], color[2]);
   let c = color.indexOf(max);
@@ -544,23 +592,23 @@ function findBestColorAndReduceOriginalSourceColor(color, vector, reduce) {
   if (c != 2 && color[0] == color[1] && color[1] != color[2]) {
     // if red and green are equal but blue is different and blue is not the max
     // yellow
-    c = 4;
+    c = 3;
   }
   if (color[0] == color[1] && color[1] == color[2]) {
     // if all colors are equal
     // black
-    c = 3;
+    c = 4;
   }
 
   vector.forEach(function (pixel) {
     let indicesRGB = getRGBIndices(pixel.x, pixel.y);
-    if (c == 4) {
-      colorImage[indicesRGB[0]] -= reduce / 2;
-      colorImage[indicesRGB[1]] -= reduce / 2;
-    } else if (c == 3) {
-      colorImage[indicesRGB[0]] -= reduce / 3;
-      colorImage[indicesRGB[1]] -= reduce / 3;
-      colorImage[indicesRGB[2]] -= reduce / 3;
+    if (c == 3) {
+      colorImage[indicesRGB[0]] -= reduce;
+      colorImage[indicesRGB[1]] -= reduce;
+    } else if (c == 4) {
+      colorImage[indicesRGB[0]] -= reduce;
+      colorImage[indicesRGB[1]] -= reduce;
+      colorImage[indicesRGB[2]] -= reduce;
     } else {
       colorImage[indicesRGB[c]] -= reduce;
     }
@@ -610,7 +658,6 @@ function svgToCanvas(art) {
 function calculateSimilarity() {
   return new Promise((resolve, reject) => {
     let MySVG = document.querySelector('#art svg').cloneNode(true);
-    MySVG.prepend(whiteBg);
     svgToCanvas(MySVG).then((canv) => {
       const { mssim } = ssim(canv, originalImageData, {
         k1: 0.00000000000001,
