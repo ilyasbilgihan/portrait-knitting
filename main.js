@@ -12,6 +12,7 @@ var SIZE = 700,
   BILATERAL_NORMAL_CHECK;
 
 var parameterString,
+  originalImageData,
   sketchImage,
   colorImage,
   colorData = [],
@@ -19,8 +20,8 @@ var parameterString,
   pins = [],
   customPinPositions = [],
   lineCount = 0,
-  pinArea = document.querySelector('#custom-pin-area');
-var ssim, originalImageData;
+  pinArea = document.querySelector('#custom-pin-area'),
+  ssim;
 
 var info = document.querySelector('#info');
 var downloadData = info.appendChild(document.createElement('a'));
@@ -43,7 +44,6 @@ var originalImage = new Image();
 originalImage.crossOrigin = 'anonymous';
 
 var input = document.querySelector('#input');
-var ictx = input.getContext('2d');
 input.width = SIZE;
 input.height = SIZE;
 
@@ -82,7 +82,8 @@ function preProcess() {
   parameterString = `Line Count\t\t: ${MAX_LINE_COUNT}
 Pin Count\t\t: ${PIN_COUNT}
 Min Distance\t\t: ${MIN_DISTANCE}
-Color Reduce Amount\t: ${D_REDUCE_VALUE}
+Darkness Reduce Amount\t: ${D_REDUCE_VALUE}
+Color Reduce Amount\t: ${C_REDUCE_VALUE}
 Color Sample Percent\t: ${SAMPLE_PERCENT}
 Is Colored\t\t: ${IS_COLORED}
 Bilateral\t\t: ${
@@ -333,8 +334,6 @@ function generatePath(currentPinIndex) {
     downloadData.innerHTML = 'Download Data';
     downloadSVG.innerHTML = 'Download SVG';
 
-    console.log(similarityHistory);
-
     combinedData = [
       '# Paramaters Used:',
       parameterString,
@@ -456,12 +455,6 @@ function calculateVectorScore(vector) {
   return score;
 }
 
-function getRGBIndices(x, y) {
-  // A kind of function which returns RGBA values of a pixel of an image with SIZExSIZE;
-  let redIndex = y * (SIZE * 4) + x * 4;
-  return [redIndex, redIndex + 1, redIndex + 2];
-}
-
 function decreaseDarkness(a, b) {
   let vector = vectorPixelsFromAtoB(a, b);
   vector.forEach(function (pixel) {
@@ -482,71 +475,7 @@ function decreaseDarkness(a, b) {
     sketchImage[indicesRGB[0]] = rgbColor[0];
     sketchImage[indicesRGB[1]] = rgbColor[1];
     sketchImage[indicesRGB[2]] = rgbColor[2];
-
-    /* if (linePath.length % 50 == 0) {
-      ictx.putImageData(arrayToImageData(sketchImage), 0, 0);
-    } */
-
-    // TODO: check if it is necessary
-    /* if (imgData[getColor(pixel.x, pixel.y)[0]] > 255) {
-      imgData[getColor(pixel.x, pixel.y)[0]] = 255;
-    } */
   });
-}
-
-function hsl2rgb(h, s, l) {
-  var r, g, b;
-
-  if (s == 0) {
-    r = g = b = l; // achromatic
-  } else {
-    var hue2rgb = function hue2rgb(p, q, t) {
-      if (t < 0) t += 1;
-      if (t > 1) t -= 1;
-      if (t < 1 / 6) return p + (q - p) * 6 * t;
-      if (t < 1 / 2) return q;
-      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-      return p;
-    };
-
-    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    var p = 2 * l - q;
-    r = hue2rgb(p, q, h + 1 / 3);
-    g = hue2rgb(p, q, h);
-    b = hue2rgb(p, q, h - 1 / 3);
-  }
-
-  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
-}
-
-function rgb2hsl(r, g, b) {
-  (r /= 255), (g /= 255), (b /= 255);
-  var max = Math.max(r, g, b),
-    min = Math.min(r, g, b);
-  var h,
-    s,
-    l = (max + min) / 2;
-
-  if (max == min) {
-    h = s = 0; // achromatic
-  } else {
-    var d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r:
-        h = (g - b) / d + (g < b ? 6 : 0);
-        break;
-      case g:
-        h = (b - r) / d + 2;
-        break;
-      case b:
-        h = (r - g) / d + 4;
-        break;
-    }
-    h /= 6;
-  }
-
-  return [h, s, l];
 }
 
 function colorizeLine(a, b) {
@@ -558,10 +487,6 @@ function colorizeLine(a, b) {
     vector,
     C_REDUCE_VALUE
   );
-
-  /* svg
-    .line(a.x, a.y, b.x, b.y)
-    .stroke({ color: c, width: 0.5, opacity: LINE_OPACITY }); */
 
   svg.line(a.x, a.y, b.x, b.y, c, colorTones[c], LINE_THICKNESS, LINE_OPACITY);
   return c;
@@ -614,45 +539,6 @@ function findBestColorAndReduceOriginalSourceColor(color, vector, reduce) {
     }
   });
   return colors[c];
-}
-
-function arrayToImageData(array, width = SIZE, height = SIZE) {
-  return new ImageData(array, width, height);
-}
-
-function rgbToGrayscale(imgData) {
-  let tmp = new Uint8ClampedArray(imgData);
-
-  for (let i = 0; i < tmp.length; i += 4) {
-    const r = tmp[i] * 0.3; // ------> Red is low
-    const g = tmp[i + 1] * 0.59; // ---> Green is high
-    const b = tmp[i + 2] * 0.11; // ----> Blue is very low
-
-    const gray = r + g + b;
-
-    tmp[i] = gray;
-    tmp[i + 1] = gray;
-    tmp[i + 2] = gray;
-  }
-
-  return tmp;
-}
-
-function svgToCanvas(art) {
-  return new Promise((resolve, reject) => {
-    let s = new XMLSerializer().serializeToString(art);
-    let encodedData = btoa(s);
-    let canvas = document.createElement('canvas');
-    canvas.width = SIZE;
-    canvas.height = SIZE;
-    let ctx = canvas.getContext('2d');
-    let img = new Image();
-    img.onload = function () {
-      ctx.drawImage(img, 0, 0);
-      resolve(ctx.getImageData(0, 0, SIZE, SIZE));
-    };
-    img.src = 'data:image/svg+xml;base64,' + encodedData;
-  });
 }
 
 function calculateSimilarity() {
