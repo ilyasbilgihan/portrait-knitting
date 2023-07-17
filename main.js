@@ -77,7 +77,7 @@ function preProcess() {
   IS_COLORED = parameters[7].checked;
   BILATERAL_FAST_CHECK = parameters[8].checked;
   BILATERAL_NORMAL_CHECK = parameters[9].checked;
-  LINE_THICKNESS = 1 / 3;
+  LINE_THICKNESS = 1 / 4;
 
   parameterString = `Line Count\t\t: ${MAX_LINE_COUNT}
 Pin Count\t\t: ${PIN_COUNT}
@@ -205,12 +205,20 @@ function start() {
   };
 
   let thickness = document.querySelector('#thickness');
-  thickness.value = 17;
+  thickness.value = 13;
   let opaque = document.querySelector('#opaque');
   opaque.value = LINE_OPACITY * 100;
 
   thickness.addEventListener('input', function (e) {
     LINE_THICKNESS = e.target.value / 50;
+    combinedData[7] = [
+      'Thickness (px)\t: ' + LINE_THICKNESS,
+      'Opactiy \t: ' + LINE_OPACITY,
+    ].join('\n');
+    downloadData.href =
+      'data:text/plain;base64,' + btoa(combinedData.join('\n'));
+
+    thickness.setAttribute('title', e.target.value / 50 + 'px');
     [...svg.svg.querySelectorAll('line')].map((l) => {
       l.setAttribute('stroke-width', e.target.value / 50);
     });
@@ -218,6 +226,14 @@ function start() {
 
   opaque.addEventListener('input', function (e) {
     LINE_OPACITY = e.target.value / 100;
+    combinedData[7] = [
+      'Thickness (px)\t: ' + LINE_THICKNESS,
+      'Opactiy \t: ' + LINE_OPACITY,
+    ].join('\n');
+    downloadData.href =
+      'data:text/plain;base64,' + btoa(combinedData.join('\n'));
+
+    opaque.setAttribute('title', e.target.value / 100);
     [...svg.svg.querySelectorAll('line')].map((l) => {
       l.setAttribute('stroke-opacity', e.target.value / 100);
     });
@@ -340,6 +356,12 @@ function generatePath(currentPinIndex) {
       '',
       '# Color Tones:',
       `Red tone\t: #e32322\nGreen tone\t: #008e5b\nBlue tone\t: #2a71b0\nYellow tone\t: #f4e500\nBlack tone\t: #000000`,
+      '',
+      '# Thread Properties:',
+      [
+        'Thickness (px)\t: ' + LINE_THICKNESS,
+        'Opactiy \t: ' + LINE_OPACITY,
+      ].join('\n'),
       '',
       '# Best Similarity:',
       '~line:' +
